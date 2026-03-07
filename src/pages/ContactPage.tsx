@@ -39,7 +39,7 @@ export function ContactPage() {
                   </div>
                   <div>
                     <p className="text-sm text-gray-500 mb-1">{t.contact.info.email}</p>
-                    <p className="text-lg font-semibold text-gray-900">Info.aplusrevision@gmail.com</p>
+                    <p className="text-lg font-semibold text-gray-900">revisor@aplusrevision.dk</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-4">

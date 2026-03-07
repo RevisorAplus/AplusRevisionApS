@@ -200,7 +200,7 @@ export function HomePage() {
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">{t.contact.info.email}</p>
-                    <p className="font-semibold text-gray-900">Info.aplusrevision@gmail.com</p>
+                    <p className="font-semibold text-gray-900">revisor@aplusrevision.dk</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">

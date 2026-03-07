@@ -83,7 +83,7 @@ export function Footer() {
               </li>
               <li className="flex items-center gap-3 text-sm">
                 <Mail className="w-6 h-6 text-accent-500 flex-shrink-0" />
-                <span>Info.aplusrevision@gmail.com</span>
+                <span>revisor@aplusrevision.dk</span>
               </li>
               <li className="flex items-start gap-3 text-sm">
                 <MapPin className="w-6 h-6 text-accent-500 flex-shrink-0 mt-0.5" />
