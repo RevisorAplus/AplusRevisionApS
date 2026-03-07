@@ -35,25 +35,6 @@ export function ContactForm({ source = 'contact_form' }: ContactFormProps) {
     if (error) {
       setStatus('error');
     } else {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      fetch(`${supabaseUrl}/functions/v1/notify-new-lead`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabaseAnonKey}`,
-        },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          company: formData.company,
-          message: formData.message,
-          source,
-          language,
-        }),
-      }).catch((err) => console.error('Notification error:', err));
-
       setStatus('success');
       setFormData({ name: '', email: '', phone: '', company: '', message: '' });
     }
