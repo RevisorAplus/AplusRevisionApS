@@ -42,7 +42,7 @@ Sprog: ${lead.language || "ukendt"}
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: "noreply@aplusrevision.dk",
+      from: "onboarding@resend.dev",
       to: "revisor@aplusrevision.dk",
       subject: `Ny henvendelse fra ${lead.name}${lead.company ? ` (${lead.company})` : ""}`,
       text: body,
