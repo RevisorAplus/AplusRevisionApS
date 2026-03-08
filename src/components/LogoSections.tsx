@@ -38,7 +38,7 @@ const logos: Record<string, LogoItem> = {
   ageras: {
     name: 'Ageras',
     url: 'https://www.ageras.dk',
-    logoUrl: '/ageras_logo.png',
+    logoUrl: `${import.meta.env.BASE_URL}ageras_logo.png`,
     alt: 'Ageras',
   },
 };
