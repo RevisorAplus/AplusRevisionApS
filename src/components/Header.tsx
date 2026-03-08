@@ -45,9 +45,10 @@ export function Header() {
         <div className="flex items-center justify-between h-16 lg:h-20">
           <Link to="/" className="flex items-center gap-2 group">
             <img
-              src={`${import.meta.env.BASE_URL}a+_revision_logo_design.png`}
-              alt="A+ Revision"
-              className="h-12 lg:h-14 w-auto"
+  src={`${import.meta.env.BASE_URL}aplus-revision-logo.png`}
+  alt="A+ Revision"
+  className="h-12 lg:h-14 w-auto"
+/>
             />
           </Link>
 
