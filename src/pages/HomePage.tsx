@@ -49,7 +49,7 @@ export function HomePage() {
           <div className="max-w-3xl mx-auto text-center">
             <div className="mb-8">
               <img
-                src="/a+_revision_logo_design.png"
+                src={`${import.meta.env.BASE_URL}a+_revision_logo_design.png`}
                 alt="A+ Revision ApS"
                 className="h-32 sm:h-40 lg:h-48 w-auto mx-auto mb-4"
               />
