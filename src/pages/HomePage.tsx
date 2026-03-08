@@ -49,10 +49,10 @@ export function HomePage() {
           <div className="max-w-3xl mx-auto text-center">
             <div className="mb-8">
               <img
-                src={`${import.meta.env.BASE_URL}a+_revision_logo_design.png`}
-                alt="A+ Revision ApS"
-                className="h-32 sm:h-40 lg:h-48 w-auto mx-auto mb-4"
-              />
+  src={`${import.meta.env.BASE_URL}aplus-revision-logo.png`}
+  alt="A+ Revision ApS"
+  className="h-32 sm:h-40 lg:h-48 w-auto mx-auto mb-4"
+/>
               <div className="h-1 w-24 bg-gradient-to-r from-primary-600 to-accent-500 rounded-full mx-auto"></div>
             </div>
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-primary-900 leading-tight mb-6">
