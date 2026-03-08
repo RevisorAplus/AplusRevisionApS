@@ -49,7 +49,6 @@ export function Header() {
   alt="A+ Revision"
   className="h-12 lg:h-14 w-auto"
 />
-            />
           </Link>
 
           <nav className="hidden lg:flex items-center gap-8">
