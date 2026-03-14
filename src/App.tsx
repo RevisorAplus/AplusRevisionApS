@@ -12,7 +12,7 @@ import { ScrollToTop } from './components/ScrollToTop';
 
 function App() {
   return (
-<BrowserRouter basename="/AplusRevisionApS">
+<BrowserRouter>
       <LanguageProvider>
         <ScrollToTop />
         <Routes>
