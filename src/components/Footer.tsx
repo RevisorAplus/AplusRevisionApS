@@ -12,7 +12,7 @@ export function Footer() {
           <div>
             <Link to="/" className="inline-block mb-4">
               <img
-                src="/a+_revision_logo_design.png"
+                src={`${import.meta.env.BASE_URL}aplus-revision-logo.png`}
                 alt="A+ Revision"
                 className="h-14 w-auto"
               />
