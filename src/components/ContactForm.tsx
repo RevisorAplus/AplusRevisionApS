@@ -35,6 +35,7 @@ export function ContactForm({ source = 'contact_form' }: ContactFormProps) {
     if (error) {
       setStatus('error');
     } else {
+      (window as any).gtag_report_conversion?.();
       setStatus('success');
       setFormData({ name: '', email: '', phone: '', company: '', message: '' });
     }
