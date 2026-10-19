@@ -30,7 +30,7 @@ export function ContactPage() {
                   </div>
                   <div>
                     <p className="text-sm text-gray-500 mb-1">{t.contact.info.phone}</p>
-                    <p className="text-lg font-semibold text-gray-900">+45 50 29 51 59</p>
+                    <a href="tel:+4550295159" className="text-lg font-semibold text-gray-900">+45 50 29 51 59</a>
                   </div>
                 </div>
                 <div className="flex items-start gap-4">

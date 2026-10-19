@@ -77,6 +77,7 @@ export function HomePage() {
               </Link>
             </div>
             <p className="text-sm text-gray-500">{t.hero.trustText}</p>
+            <p className="text-sm text-gray-500 mt-2">{t.hero.scope}</p>
           </div>
         </div>
       </section>
@@ -191,7 +192,7 @@ export function HomePage() {
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">{t.contact.info.phone}</p>
-                    <p className="font-semibold text-gray-900">+45 50 29 51 59</p>
+                    <a href="tel:+4550295159" className="font-semibold text-gray-900">+45 50 29 51 59</a>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
