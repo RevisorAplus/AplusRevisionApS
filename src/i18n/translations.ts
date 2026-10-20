@@ -14,8 +14,8 @@ export const translations = {
       subheadline: 'Bogføring fra 895 kr. om måneden. Én fast kontaktperson, og du får prisen, før vi starter.',
       primaryCta: 'Book gratis intromøde (15 min.)',
       secondaryCta: 'Få et tilbud',
-      trustText: 'Gratis og uforpligtende · Svar inden 24 timer · 50 29 51 59',
-      scope: 'Vi laver bogføring, årsregnskab, skat og moms. Ikke lovpligtig revision.',
+      trustText: 'Gratis og uforpligtende · Svar inden 24 timer',
+      phone: '50 29 51 59',
     },
     services: {
       title: 'Vores ydelser',
@@ -297,8 +297,8 @@ export const translations = {
       subheadline: 'Bookkeeping from DKK 895 a month. One contact person, and you get the price before we start.',
       primaryCta: 'Book free intro meeting (15 min.)',
       secondaryCta: 'Get a quote',
-      trustText: 'Free and non-binding · Reply within 24 hours · 50 29 51 59',
-      scope: 'We do bookkeeping, annual accounts, tax and VAT. Not statutory audit.',
+      trustText: 'Free and non-binding · Reply within 24 hours',
+      phone: '50 29 51 59',
     },
     services: {
       title: 'Our services',

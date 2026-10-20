@@ -20,7 +20,7 @@ const logos: Record<string, LogoItem> = {
   economic: {
     name: 'e-conomic',
     url: 'https://www.e-conomic.dk',
-    logoUrl: 'https://www.e-conomic.dk/sites/default/files/e-conomic/e-conomic_primary_logo_pos_rgb.png',
+    logoUrl: `${import.meta.env.BASE_URL}e-conomic-logo.png`,
     alt: 'e-conomic regnskabsprogram',
   },
   dinero: {
@@ -82,7 +82,7 @@ function LogoImage({ item }: { item: LogoItem }) {
       href={item.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center justify-center w-28"
+      className="inline-flex items-center justify-center"
       title={item.name}
     >
       <div className="flex flex-col items-center">
