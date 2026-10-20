@@ -173,5 +173,6 @@ export function seoFor(pathname: string, language: "da" | "en"): SeoSide & { can
   const sti = pathname.length > 1 && pathname.endsWith("/") ? pathname.slice(0, -1) : pathname || "/";
   const tabel = language === "en" ? en : da;
   const side = tabel[sti] ?? mangler[language];
-  return { ...side, canonical: `${SITE}${sti === "/" ? "/" : sti}` };
+  const synlig = sti === "/" ? "/" : `${sti}/`;
+  return { ...side, canonical: `${SITE}${synlig}` };
 }

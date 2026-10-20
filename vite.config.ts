@@ -107,6 +107,16 @@ function githubPagesSpa(): Plugin {
       );
       ikkeFundet = erstat(
         ikkeFundet,
+        /<meta property="og:title" content="[^"]*"\s*\/?>/,
+        `<meta property="og:title" content="${escapeAttr(mangler.title)}" />`
+      );
+      ikkeFundet = erstat(
+        ikkeFundet,
+        /<meta property="og:description" content="[^"]*"\s*\/?>/,
+        `<meta property="og:description" content="${escapeAttr(mangler.description)}" />`
+      );
+      ikkeFundet = erstat(
+        ikkeFundet,
         /<link rel="canonical" href="[^"]*"\s*\/?>/,
         ''
       );
