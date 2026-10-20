@@ -19,7 +19,10 @@ export const translations = {
     },
     services: {
       title: 'Vores ydelser',
-      subtitle: 'Bogføring, årsregnskab, skat og moms. Prisen står her.',
+      pageTitle: 'Bogføring, årsregnskab, skat og moms',
+      subtitle: 'Vi overtager bogføringen i Dinero, Billy eller e-conomic. Prisen står her.',
+      notFound: 'Siden findes ikke',
+      backToServices: 'Tilbage til ydelser',
       viewAll: 'Se alle ydelser',
       learnMore: 'Læs mere',
       getQuote: 'Få et tilbud',
@@ -302,7 +305,10 @@ export const translations = {
     },
     services: {
       title: 'Our services',
-      subtitle: 'Bookkeeping, annual accounts, tax and VAT. The price is listed here.',
+      pageTitle: 'Bookkeeping, annual accounts, tax and VAT',
+      subtitle: 'We take over the books in Dinero, Billy or e-conomic. The price is listed here.',
+      notFound: 'Page not found',
+      backToServices: 'Back to services',
       viewAll: 'View all services',
       learnMore: 'Learn more',
       getQuote: 'Get a quote',

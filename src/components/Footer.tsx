@@ -50,6 +50,11 @@ export function Footer() {
                   {t.services.advisory.title}
                 </Link>
               </li>
+              <li>
+                <Link to="/services/salary" className="text-sm hover:text-accent-400 transition-colors">
+                  {t.services.salary.title}
+                </Link>
+              </li>
             </ul>
           </div>
 
@@ -64,6 +69,11 @@ export function Footer() {
               <li>
                 <Link to="/pricing" className="text-sm hover:text-accent-400 transition-colors">
                   {t.nav.pricing}
+                </Link>
+              </li>
+              <li>
+                <Link to="/skat-deadlines" className="text-sm hover:text-accent-400 transition-colors">
+                  {t.nav.skatDeadlines}
                 </Link>
               </li>
               <li>
@@ -83,7 +93,7 @@ export function Footer() {
               </li>
               <li className="flex items-center gap-3 text-sm">
                 <Mail className="w-6 h-6 text-accent-500 flex-shrink-0" />
-                <span>revisor@aplusrevision.dk</span>
+                <a href="mailto:revisor@aplusrevision.dk">revisor@aplusrevision.dk</a>
               </li>
               <li className="flex items-start gap-3 text-sm">
                 <MapPin className="w-6 h-6 text-accent-500 flex-shrink-0 mt-0.5" />

@@ -26,13 +26,13 @@ const serviceKeys: Record<string, ServiceKey> = {
   'salary': 'salary',
 };
 
-const servicePrices: Record<ServiceKey, { price?: string; unit?: string }> = {
-  bookkeeping: { price: '895 DKK', unit: '/ month' },
+const servicePrices: Record<ServiceKey, { price?: string; unit?: 'perMonth' | 'perHour' | 'perEmployee' }> = {
+  bookkeeping: { price: '895 DKK', unit: 'perMonth' },
   annualAccounts: { price: '4.995 DKK' },
   taxReturns: {},
   vat: {},
-  advisory: { price: '495 DKK', unit: '/ hour' },
-  salary: { price: '195 DKK', unit: '/ employee' },
+  advisory: { price: '495 DKK', unit: 'perHour' },
+  salary: { price: '195 DKK', unit: 'perEmployee' },
 };
 
 export function ServiceDetailPage() {
@@ -45,9 +45,9 @@ export function ServiceDetailPage() {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Service not found</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">{t.services.notFound}</h1>
           <Link to="/services" className="text-primary-600 hover:text-primary-700">
-            Back to services
+            {t.services.backToServices}
           </Link>
         </div>
       </div>
@@ -81,7 +81,7 @@ export function ServiceDetailPage() {
                   <p className="text-sm text-primary-700 mb-1">{t.pricing.startingFrom}</p>
                   <p className="text-3xl font-bold text-primary-900">
                     {pricing.price}
-                    {pricing.unit && <span className="text-lg font-normal text-primary-700"> {pricing.unit}</span>}
+                    {pricing.unit && <span className="text-lg font-normal text-primary-700"> {t.services[pricing.unit]}</span>}
                   </p>
                 </div>
               )}
