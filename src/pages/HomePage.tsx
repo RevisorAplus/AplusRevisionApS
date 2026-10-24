@@ -76,8 +76,13 @@ export function HomePage() {
                 {t.hero.secondaryCta}
               </Link>
             </div>
-            <p className="text-sm text-gray-500">{t.hero.trustText}</p>
-            <p className="text-sm text-gray-500 mt-2">{t.hero.scope}</p>
+            <p className="text-sm text-gray-500">
+              {t.hero.trustText}
+              {' · '}
+              <a href="tel:+4550295159" className="whitespace-nowrap font-medium text-gray-700 hover:text-primary-700">
+                {t.hero.phone}
+              </a>
+            </p>
           </div>
         </div>
       </section>
@@ -216,7 +221,13 @@ export function HomePage() {
               </div>
               <div className="mt-8 flex items-center gap-3 text-primary-600">
                 <CheckCircle2 className="w-5 h-5" />
-                <span className="font-medium">{t.hero.trustText}</span>
+                <span className="font-medium">
+                  {t.hero.trustText}
+                  {' · '}
+                  <a href="tel:+4550295159" className="whitespace-nowrap hover:underline">
+                    {t.hero.phone}
+                  </a>
+                </span>
               </div>
             </div>
             <div className="bg-gray-50 rounded-2xl p-8">
