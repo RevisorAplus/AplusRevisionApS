@@ -1,10 +1,46 @@
 import { useMemo, useState } from 'react';
+import { Bogfoering, Moms } from './BogfoeringView';
+import { Kontrol, Regnskab } from './RegnskabView';
 import { formatDato, formatKroner, kalenderMaaneder } from './penge';
 import { indlaesSaldobalance, kontrollerRegnskabsaar, type Regnskabsaar } from './saldobalance';
+import type { Banklinje } from './bank';
+
+type Skærm = 'bogfoering' | 'moms' | 'aarsregnskab' | 'kontrol' | 'saldobalance';
+
+const SKAERME: { id: Skærm; label: string }[] = [
+  { id: 'bogfoering', label: 'Bogføring' },
+  { id: 'moms', label: 'Moms' },
+  { id: 'aarsregnskab', label: 'Årsregnskab' },
+  { id: 'kontrol', label: 'Kontrol' },
+  { id: 'saldobalance', label: 'Saldobalance' },
+];
 
 const TOM: Regnskabsaar = { stiftet: '', fra: '', til: '', foersteAar: true };
 
 function App() {
+  const [skaerm, setSkaerm] = useState<Skærm>('bogfoering');
+  const [linjer, setLinjer] = useState<Banklinje[]>([]);
+  const [maanedLaast, setMaanedLaast] = useState(false);
+
+  return (
+    <main className="app">
+      <nav className="menu" aria-label="Sektioner">
+        {SKAERME.map((punkt) => (
+          <button key={punkt.id} type="button" aria-current={skaerm === punkt.id ? 'page' : undefined} onClick={() => setSkaerm(punkt.id)}>
+            {punkt.label}
+          </button>
+        ))}
+      </nav>
+      {skaerm === 'bogfoering' ? <Bogfoering linjer={linjer} laast={maanedLaast} onLinjer={setLinjer} onLaast={setMaanedLaast} /> : null}
+      {skaerm === 'moms' ? <Moms linjer={linjer} /> : null}
+      {skaerm === 'aarsregnskab' ? <Regnskab /> : null}
+      {skaerm === 'kontrol' ? <Kontrol /> : null}
+      {skaerm === 'saldobalance' ? <SaldobalanceSkærm /> : null}
+    </main>
+  );
+}
+
+function SaldobalanceSkærm() {
   const [aar, setAar] = useState<Regnskabsaar>(TOM);
   const [tekst, setTekst] = useState('');
   const [filnavn, setFilnavn] = useState('');
@@ -36,7 +72,7 @@ function App() {
   }
 
   return (
-    <main className="app">
+    <section>
       <header className="top">
         <h1>Saldobalance</h1>
         <p>
@@ -104,7 +140,7 @@ function App() {
       ) : null}
 
       {resultat ? <Resultat resultat={resultat} filnavn={filnavn} viserPrimos={viserPrimos} /> : null}
-    </main>
+    </section>
   );
 }
 

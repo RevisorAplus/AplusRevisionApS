@@ -111,6 +111,81 @@ button, .filknap {
 
 button:hover { background: #f6f8f7; }
 
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.menu {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.menu button[aria-current="page"],
+.menu button[aria-current="page"]:hover {
+  background: #1c2420;
+  color: #fff;
+  border-color: #1c2420;
+}
+
+.trin {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.trin li {
+  padding: 8px 10px;
+  background: #fff;
+  border: 1px solid #e1e6e3;
+}
+
+.trin li.nu { border-color: #1c2420; }
+
+.trin li.lukket { color: #8a938e; }
+
+.linje {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  align-items: end;
+  margin-top: 14px;
+}
+
+.afklaring { margin-top: 12px; }
+
+.kontrol {
+  list-style: none;
+  margin: 18px 0;
+  padding: 0;
+}
+
+.kontrol li {
+  display: grid;
+  gap: 2px;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid #e1e6e3;
+}
+
+.kontrol li.klar { background: #e8f6ee; border-color: #b7dfc8; }
+.kontrol li.stop { background: #fdecee; border-color: #f3c5cb; }
+
+input[type="text"], input:not([type]), select {
+  padding: 8px 10px;
+  border: 1px solid #c9d1cc;
+  background: #fff;
+  color: inherit;
+}
+
+@media (min-width: 800px) {
+  .linje { grid-template-columns: 1.4fr auto 0.7fr 0.8fr auto; }
+}
+
 .banner {
   margin-top: 22px;
   padding: 14px 16px;
