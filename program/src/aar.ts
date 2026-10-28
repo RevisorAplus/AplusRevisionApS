@@ -146,6 +146,8 @@ export function kontrollerAar(input: {
   valutaKursSat: boolean;
   sambeskatning: boolean;
   haeftelsesnoteMed: boolean;
+  anlaegFindes?: boolean;
+  afskrivningStemmer?: boolean;
 }): { linjer: KontrolLinje[]; kanLaase: boolean } {
   const linjer: KontrolLinje[] = [
     { navn: 'Saldobalance', ok: input.saldobalanceGodkendt && input.saldoSum === 0, tekst: input.saldoSum === 0 ? 'Saldobalancen stemmer.' : 'Saldobalancen stemmer ikke. Ingen konti er fjernet.' },
@@ -172,6 +174,10 @@ export function kontrollerAar(input: {
   }
   if (input.sambeskatning) {
     linjer.push({ navn: 'Hæftelse', ok: input.haeftelsesnoteMed, tekst: input.haeftelsesnoteMed ? 'Hæftelsesnoten er med.' : 'Hæftelsesnoten mangler i begge selskaber.' });
+  }
+  if (input.anlaegFindes) {
+    const stemmer = input.afskrivningStemmer !== false;
+    linjer.push({ navn: 'Anlæg', ok: stemmer, tekst: stemmer ? 'Afskrivningen er lig med kartotekets kørsel.' : 'Afskrivningen i resultatet er ikke lig med kartoteket.' });
   }
   return { linjer, kanLaase: linjer.every((linje) => linje.ok) };
 }

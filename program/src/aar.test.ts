@@ -94,6 +94,8 @@ describe('årsregnskab og kontrol', () => {
     expect(kontrol({ varelagerFindes: true }).kanLaase).toBe(false);
     expect(kontrol({ valutaFindes: true }).kanLaase).toBe(false);
     expect(kontrol({ sambeskatning: true, haeftelsesnoteMed: false }).kanLaase).toBe(false);
+    expect(kontrol({ anlaegFindes: true, afskrivningStemmer: false }).kanLaase).toBe(false);
+    expect(kontrol().linjer.map((linje) => linje.navn)).not.toContain('Anlæg');
   });
 
   it('regner kurs og lagerdifference, når posten findes', () => {

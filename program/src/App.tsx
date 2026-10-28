@@ -1,15 +1,19 @@
 import { useMemo, useState } from 'react';
+import { AnlaegSkærm } from './AnlaegView';
 import { Bogfoering, Moms } from './BogfoeringView';
+import { ImportSkærm } from './ImportView';
 import { Kontrol, Regnskab } from './RegnskabView';
 import { formatDato, formatKroner, kalenderMaaneder } from './penge';
 import { indlaesSaldobalance, kontrollerRegnskabsaar, type Regnskabsaar } from './saldobalance';
 import type { Banklinje } from './bank';
 
-type Skærm = 'bogfoering' | 'moms' | 'aarsregnskab' | 'kontrol' | 'saldobalance';
+type Skærm = 'bogfoering' | 'import' | 'moms' | 'anlaeg' | 'aarsregnskab' | 'kontrol' | 'saldobalance';
 
 const SKAERME: { id: Skærm; label: string }[] = [
   { id: 'bogfoering', label: 'Bogføring' },
+  { id: 'import', label: 'Import' },
   { id: 'moms', label: 'Moms' },
+  { id: 'anlaeg', label: 'Anlæg' },
   { id: 'aarsregnskab', label: 'Årsregnskab' },
   { id: 'kontrol', label: 'Kontrol' },
   { id: 'saldobalance', label: 'Saldobalance' },
@@ -32,7 +36,9 @@ function App() {
         ))}
       </nav>
       {skaerm === 'bogfoering' ? <Bogfoering linjer={linjer} laast={maanedLaast} onLinjer={setLinjer} onLaast={setMaanedLaast} /> : null}
+      {skaerm === 'import' ? <ImportSkærm /> : null}
       {skaerm === 'moms' ? <Moms linjer={linjer} /> : null}
+      {skaerm === 'anlaeg' ? <AnlaegSkærm /> : null}
       {skaerm === 'aarsregnskab' ? <Regnskab /> : null}
       {skaerm === 'kontrol' ? <Kontrol /> : null}
       {skaerm === 'saldobalance' ? <SaldobalanceSkærm /> : null}
