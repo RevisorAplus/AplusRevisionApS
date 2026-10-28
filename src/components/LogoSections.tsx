@@ -6,16 +6,16 @@ interface LogoItem {
   url: string;
   logoUrl: string | null;
   alt: string;
-  invertOnLight?: boolean;
 }
+
+const asset = (file: string) => `${import.meta.env.BASE_URL}logos/${file}`;
 
 const logos: Record<string, LogoItem> = {
   billy: {
     name: 'Billy',
     url: 'https://www.billy.dk',
-    logoUrl: 'https://www.billy.dk/assets/new_identity/logos/billy-by-shine_white.svg',
+    logoUrl: asset('billy.svg'),
     alt: 'Billy regnskabsprogram',
-    invertOnLight: true,
   },
   economic: {
     name: 'e-conomic',
@@ -26,13 +26,13 @@ const logos: Record<string, LogoItem> = {
   dinero: {
     name: 'Dinero',
     url: 'https://dinero.dk',
-    logoUrl: 'https://salary.dk/wp-content/uploads/2020/04/Layer-34.png',
+    logoUrl: asset('dinero.svg'),
     alt: 'Dinero regnskabsprogram',
   },
   salary: {
     name: 'Salary',
     url: 'https://www.salary.dk',
-    logoUrl: 'https://salary.dk/wp-content/uploads/2026/01/cropped-Salary-by-shine_logo_Positive.png',
+    logoUrl: asset('salary.png'),
     alt: 'Salary lønsystem',
   },
   ageras: {
@@ -45,10 +45,7 @@ const logos: Record<string, LogoItem> = {
 
 function LogoPlaceholder({ name }: { name: string }) {
   return (
-    <div className="flex flex-col items-center justify-center h-12 px-6 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
-      <span className="text-sm font-medium text-gray-500">{name}</span>
-      <span className="text-[10px] text-gray-400">Upload official logo</span>
-    </div>
+    <span className="text-sm font-semibold tracking-wide text-gray-500">{name}</span>
   );
 }
 
@@ -72,10 +69,8 @@ function LogoImage({ item }: { item: LogoItem }) {
   const isAgeras = item.name === 'Ageras';
   const baseClasses = isAgeras
     ? 'h-7 w-auto object-contain transition-all duration-300'
-    : 'h-11 w-auto object-contain transition-all duration-300';
-  const filterClasses = item.invertOnLight
-    ? 'invert opacity-40 grayscale hover:opacity-70'
-    : 'opacity-50 grayscale hover:opacity-80 hover:grayscale-0';
+    : 'h-11 w-auto max-w-[9rem] object-contain transition-all duration-300';
+  const filterClasses = 'opacity-70 grayscale hover:opacity-100 hover:grayscale-0';
 
   return (
     <a

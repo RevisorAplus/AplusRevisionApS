@@ -50,6 +50,11 @@ export function Footer() {
                   {t.services.advisory.title}
                 </Link>
               </li>
+              <li>
+                <Link to="/services/salary" className="text-sm hover:text-accent-400 transition-colors">
+                  {t.services.salary.title}
+                </Link>
+              </li>
             </ul>
           </div>
 

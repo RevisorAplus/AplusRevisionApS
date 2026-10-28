@@ -180,6 +180,8 @@ export const translations = {
         sending: 'Sender...',
         success: 'Tak for din henvendelse! Vi vender tilbage inden 24 timer.',
         error: 'Der opstod en fejl. Prøv venligst igen.',
+        emailFallback: 'Send beskeden på mail',
+        emailFallbackHint: 'Vi fik ikke gemt beskeden. Send den på mail, så den stadig når frem.',
       },
       info: {
         phone: 'Telefon',
@@ -463,6 +465,8 @@ export const translations = {
         sending: 'Sending...',
         success: 'Thank you for your inquiry! We will get back to you within 24 hours.',
         error: 'An error occurred. Please try again.',
+        emailFallback: 'Send the message by email',
+        emailFallbackHint: 'We could not save the message. Send it by email so it still reaches us.',
       },
       info: {
         phone: 'Phone',
