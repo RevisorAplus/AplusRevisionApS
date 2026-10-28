@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { godkendLinje, indlaesBank, lukMaaned, momsAngivelse, proevPostering, type KendtLinje } from './bank';
+import { godkendLinje, indlaesBank, lukMaaned, momsAfLinje, momsAngivelse, proevPostering, type KendtLinje } from './bank';
 
 const kr = (kroner: number) => Math.round(kroner * 100);
 const kendte: KendtLinje[] = [
@@ -17,6 +17,13 @@ describe('bank', () => {
   it('beholder alle linjer og foreslår kun en tekst, der er godkendt før', () => {
     const linjer = indlaesBank(fil, kendte);
     expect(linjer).toHaveLength(3);
+    expect(linjer[0]).toMatchObject({
+      dato: '2024-09-15',
+      tekst: 'Salgsfaktura 104',
+      beloeb: kr(12_500),
+      konto: '1010',
+      momskode: 'salg25',
+    });
     expect(linjer.filter((linje) => linje.status === 'stemmer')).toHaveLength(2);
     expect(linjer.find((linje) => linje.tekst === 'Ukendt betaling')).toMatchObject({ status: 'afventer', konto: null });
     expect(momsAngivelse(linjer).afgift).toBe(kr(1_250));
@@ -27,6 +34,7 @@ describe('bank', () => {
     const aaben = lukMaaned(indlaesBank(fil, kendte), kr(-1_250));
     expect(aaben.kanLukke).toBe(false);
     const godkendt = godkendLinje(indlaesBank(fil, kendte), 4, '2210', 'ingen');
+    expect(godkendt[2]).toMatchObject({ konto: '2210', momskode: 'ingen', status: 'stemmer' });
     expect(lukMaaned(godkendt, kr(-1_250)).kanLukke).toBe(true);
     expect(lukMaaned(godkendt, kr(-1_000)).kanLukke).toBe(false);
   });
@@ -34,5 +42,13 @@ describe('bank', () => {
   it('tager ikke imod en ny postering i en låst måned', () => {
     expect(proevPostering(true)).toContain('låst');
     expect(proevPostering(false)).toBeNull();
+  });
+
+  it('giver en salgskreditnota negativ salgsmoms', () => {
+    const [kreditnota] = indlaesBank(
+      'Dato;Tekst;Beløb\n18.09.2024;Kreditnota;-1.250,00',
+      [{ tekst: 'Kreditnota', konto: '1010', momskode: 'salg25' }],
+    );
+    expect(momsAfLinje(kreditnota)).toEqual({ salg: kr(-250), koeb: 0 });
   });
 });

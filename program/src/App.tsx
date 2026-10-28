@@ -1,33 +1,75 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { AdminSkærm } from './AdminView';
 import { AnlaegSkærm } from './AnlaegView';
-import { Bogfoering, Moms } from './BogfoeringView';
+import { BilagSkærm } from './BilagView';
+import { Bogfoering, Moms, momsKontrol } from './BogfoeringView';
 import { ImportSkærm } from './ImportView';
-import { Kontrol, Regnskab } from './RegnskabView';
+import { Kontrol, Regnskab, beregnKontrol, useRegnskab } from './RegnskabView';
+import { SpecifikationSkærm } from './SpecifikationView';
 import { formatDato, formatKroner, kalenderMaaneder } from './penge';
-import { indlaesSaldobalance, kontrollerRegnskabsaar, type Regnskabsaar } from './saldobalance';
+import { indlaesSaldobalance, kontrollerRegnskabsaar, type ImportResultat, type Regnskabsaar } from './saldobalance';
 import type { Banklinje } from './bank';
+import type { LaastPeriode } from './laas';
 
-type Skærm = 'bogfoering' | 'import' | 'moms' | 'anlaeg' | 'aarsregnskab' | 'kontrol' | 'saldobalance';
+type Skærm =
+  | 'bogfoering'
+  | 'bilag'
+  | 'import'
+  | 'moms'
+  | 'anlaeg'
+  | 'aarsregnskab'
+  | 'kontrol'
+  | 'specifikation'
+  | 'admin'
+  | 'saldobalance';
 
 const SKAERME: { id: Skærm; label: string }[] = [
   { id: 'bogfoering', label: 'Bogføring' },
+  { id: 'bilag', label: 'Bilag' },
   { id: 'import', label: 'Import' },
   { id: 'moms', label: 'Moms' },
   { id: 'anlaeg', label: 'Anlæg' },
   { id: 'aarsregnskab', label: 'Årsregnskab' },
   { id: 'kontrol', label: 'Kontrol' },
+  { id: 'specifikation', label: 'Specifikation' },
+  { id: 'admin', label: 'Admin' },
   { id: 'saldobalance', label: 'Saldobalance' },
 ];
 
 const TOM: Regnskabsaar = { stiftet: '', fra: '', til: '', foersteAar: true };
 
+function laastePerioder(linjer: Banklinje[], laast: boolean): LaastPeriode[] {
+  const datoer = linjer.map((linje) => linje.dato).filter((dato) => dato !== '').sort();
+  if (!laast || datoer.length === 0) return [];
+  const foerste = datoer[0];
+  const sidste = datoer[datoer.length - 1];
+  const [aar, maaned] = sidste.split('-').map(Number);
+  const slut = new Date(Date.UTC(aar, maaned, 0)).getUTCDate();
+  return [{ fra: `${foerste.slice(0, 7)}-01`, til: `${sidste.slice(0, 7)}-${String(slut).padStart(2, '0')}` }];
+}
+
 function App() {
   const [skaerm, setSkaerm] = useState<Skærm>('bogfoering');
   const [linjer, setLinjer] = useState<Banklinje[]>([]);
   const [maanedLaast, setMaanedLaast] = useState(false);
+  const [momskonto, setMomskonto] = useState(0);
+  const [aarLaast, setAarLaast] = useState(false);
+  const [saldo, setSaldo] = useState<ImportResultat | null>(null);
+  const model = useRegnskab(aarLaast);
+  const laaste = useMemo<LaastPeriode[]>(
+    () => [...laastePerioder(linjer, maanedLaast), ...(aarLaast ? [{ fra: model.periode.fra, til: model.periode.til }] : [])],
+    [linjer, maanedLaast, aarLaast, model.periode.fra, model.periode.til],
+  );
+  const kontrol = beregnKontrol(model, { bankLukket: maanedLaast, momsStemmer: momsKontrol(linjer, momskonto), saldo });
+
+  const vis = (id: Skærm) => ({ hidden: skaerm !== id });
 
   return (
     <main className="app">
+      <div className="brand">
+        <strong>Programmet</strong>
+        <span>Bogføring og årsregnskab</span>
+      </div>
       <nav className="menu" aria-label="Sektioner">
         {SKAERME.map((punkt) => (
           <button key={punkt.id} type="button" aria-current={skaerm === punkt.id ? 'page' : undefined} onClick={() => setSkaerm(punkt.id)}>
@@ -35,23 +77,27 @@ function App() {
           </button>
         ))}
       </nav>
-      {skaerm === 'bogfoering' ? <Bogfoering linjer={linjer} laast={maanedLaast} onLinjer={setLinjer} onLaast={setMaanedLaast} /> : null}
-      {skaerm === 'import' ? <ImportSkærm /> : null}
-      {skaerm === 'moms' ? <Moms linjer={linjer} /> : null}
-      {skaerm === 'anlaeg' ? <AnlaegSkærm /> : null}
-      {skaerm === 'aarsregnskab' ? <Regnskab /> : null}
-      {skaerm === 'kontrol' ? <Kontrol /> : null}
-      {skaerm === 'saldobalance' ? <SaldobalanceSkærm /> : null}
+      <div {...vis('bogfoering')}><Bogfoering linjer={linjer} laast={maanedLaast} momskonto={momskonto} onLinjer={setLinjer} onMomskonto={setMomskonto} onLaast={setMaanedLaast} /></div>
+      <div {...vis('bilag')}><BilagSkærm laaste={laaste} /></div>
+      <div {...vis('import')}><ImportSkærm laaste={laaste} /></div>
+      <div {...vis('moms')}><Moms linjer={linjer} laast={maanedLaast} momskonto={momskonto} /></div>
+      <div {...vis('anlaeg')}><AnlaegSkærm model={model} aarLaast={aarLaast} /></div>
+      <div {...vis('aarsregnskab')}><Regnskab model={model} kontrol={kontrol} aarLaast={aarLaast} /></div>
+      <div {...vis('kontrol')}><Kontrol model={model} kontrol={kontrol} aarLaast={aarLaast} onLaas={() => { if (kontrol.kanLaase) setAarLaast(true); }} /></div>
+      <div {...vis('specifikation')}><SpecifikationSkærm /></div>
+      <div {...vis('admin')}><AdminSkærm /></div>
+      <div {...vis('saldobalance')}><SaldobalanceSkærm onResultat={setSaldo} /></div>
     </main>
   );
 }
 
-function SaldobalanceSkærm() {
+function SaldobalanceSkærm({ onResultat }: { onResultat: (resultat: ImportResultat | null) => void }) {
   const [aar, setAar] = useState<Regnskabsaar>(TOM);
   const [tekst, setTekst] = useState('');
   const [filnavn, setFilnavn] = useState('');
 
   const resultat = useMemo(() => (tekst.trim() ? indlaesSaldobalance(tekst, aar) : null), [tekst, aar]);
+  useEffect(() => onResultat(resultat), [resultat, onResultat]);
   const aarFejl = aar.stiftet || aar.fra || aar.til ? kontrollerRegnskabsaar(aar) : [];
   const viserPrimos = resultat?.linjer.some((linje) => linje.primo !== null || linje.periode !== null || linje.ultimo !== null) ?? false;
 
@@ -78,7 +124,7 @@ function SaldobalanceSkærm() {
   }
 
   return (
-    <section>
+    <section className="skaerm">
       <header className="top">
         <h1>Saldobalance</h1>
         <p>
@@ -118,7 +164,7 @@ function SaldobalanceSkærm() {
           </p>
         ) : null}
         <div className="filer">
-          <label className="filknap">
+          <label className="filknap primaer">
             Vælg fil
             <input
               className="skjult"

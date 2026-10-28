@@ -2,7 +2,8 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { indlaesSaldobalance, type Regnskabsaar } from './saldobalance';
+import type { BilagPost } from './bilag';
+import { indlaesSaldobalance, primoStemmer, saldobalanceFraBilag, sumSaldo, type Regnskabsaar } from './saldobalance';
 
 const mappe = dirname(fileURLToPath(import.meta.url));
 const foersteAar: Regnskabsaar = {
@@ -153,5 +154,53 @@ describe('saldobalance', () => {
     expect(resultat.linjer).toHaveLength(2);
     expect(resultat.sum).toBe(0);
     expect(resultat.aarsager.join(' ')).toContain('ikke sin periode');
+  });
+});
+
+describe('saldobalance fra bilag og primo', () => {
+  const grundPoster: BilagPost[] = [
+    {
+      id: '1',
+      kilde: 'test',
+      bilagsnummer: 'B1',
+      dato: '2024-09-01',
+      tekst: 'Salg',
+      konto: '1010',
+      beloeb: -100_000,
+      momskode: '',
+      stornoAf: null,
+    },
+    {
+      id: '2',
+      kilde: 'test',
+      bilagsnummer: 'B1',
+      dato: '2024-09-01',
+      tekst: 'Bank',
+      konto: '5500',
+      beloeb: 100_000,
+      momskode: '',
+      stornoAf: null,
+    },
+  ];
+
+  it('summerer netto pr. konto til nul og tilbageførsel flytter saldo', async () => {
+    const { tilbagefoer } = await import('./bilag');
+    expect(sumSaldo(saldobalanceFraBilag(grundPoster))).toBe(0);
+    const { poster: medTilbage } = tilbagefoer(grundPoster, '1', '2024-10-01');
+    const salg = saldobalanceFraBilag(medTilbage).find((s) => s.konto === '1010')?.beloeb;
+    expect(salg).toBe(0);
+  });
+
+  it('beholder bogførte poster i låste perioder i saldobalancen', () => {
+    const laaste = [{ fra: '2024-09-01', til: '2024-09-30' }];
+    const saldi = saldobalanceFraBilag(grundPoster, laaste);
+    expect(saldi).toHaveLength(2);
+    expect(sumSaldo(saldi)).toBe(0);
+  });
+
+  it('primo stemmer i første år altid og derefter kun ved lighed', () => {
+    expect(primoStemmer(true, 0, 999)).toBe(true);
+    expect(primoStemmer(false, 100, 100)).toBe(true);
+    expect(primoStemmer(false, 100, 101)).toBe(false);
   });
 });

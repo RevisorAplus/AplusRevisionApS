@@ -2,7 +2,7 @@ export const SELSKABSSKAT_PROCENT = 22;
 
 export const HAEFTELSESTEKST = 'Selskabet hæfter solidarisk for selskabsskat og kildeskat i sambeskatningskredsen.';
 
-export type Selskabsform = 'aps' | 'enkeltmand';
+export type Selskabsform = 'aps' | 'as' | 'enkeltmand';
 
 export type KontoRolle = 'stiftelse' | 'skattekonto-rente' | 'ikke-fradrag' | 'anden';
 
@@ -33,6 +33,7 @@ export type SkatResultat = {
   nytFremfoertUnderskud: number;
   balanceTekst: string | null;
   note: string | null;
+  haeftelse: string | null;
   fejl: string | null;
 };
 
@@ -41,17 +42,40 @@ export type SelskabIKreds = {
   grundlag: SkatGrundlag;
 };
 
-const TOMT: SkatResultat = {
-  linjer: [],
-  skattepligtigIndkomst: 0,
-  aktuelSkat: 0,
-  udskudtSkat: null,
-  resultatEfterSkat: 0,
-  nytFremfoertUnderskud: 0,
-  balanceTekst: null,
-  note: null,
-  fejl: null,
+export type Balancepost = { tekst: string; beloeb: number; modpart: string };
+
+export type SambeskattetSelskab = SkatResultat & {
+  navn: string;
+  administrationsselskab: boolean;
+  sambeskatningsbidrag: number;
+  balanceposter: Balancepost[];
 };
+
+export type SambeskatningResultat = {
+  fejl: string | null;
+  selskaber: SambeskattetSelskab[];
+  skyldigTilSkat: number;
+  tilgodehavende: number;
+};
+
+export const BRO = {
+  resultat: 'Resultat før skat',
+  ikkeFradrag: 'Ikke fradragsberettigede omkostninger',
+  stiftelse: 'Stiftelsesomkostninger',
+  skattekontoRente: 'Renter til Skattekontoen',
+  regnskabsafskrivning: 'Regnskabsmæssige afskrivninger',
+  skatteafskrivning: 'Skattemæssige afskrivninger',
+  fremfoert: 'Fremført underskud',
+  modregnet: 'Modregnet underskud fra sambeskattede selskaber',
+  afgivet: 'Underskud anvendt i sambeskattede selskaber',
+  skattepligtig: 'Skattepligtig indkomst',
+} as const;
+
+export const aaretsSkatTekst = (procent: number) => `Årets skat ${procent} %`;
+
+export function erSelskab(form: Selskabsform): boolean {
+  return form !== 'enkeltmand';
+}
 
 export function permanenteFraKonti(konti: { rolle: KontoRolle; beloeb: number }[]): Pick<SkatGrundlag, 'ikkeFradrag' | 'stiftelse' | 'skattekontoRente'> {
   return konti.reduce(
@@ -65,80 +89,151 @@ export function permanenteFraKonti(konti: { rolle: KontoRolle; beloeb: number }[
   );
 }
 
-export function beregnSkat(grundlag: SkatGrundlag, procent = SELSKABSSKAT_PROCENT): SkatResultat {
-  if (grundlag.form === 'enkeltmand') {
-    return {
-      ...TOMT,
-      resultatEfterSkat: grundlag.resultatFoerSkat,
-      fejl: 'En personligt ejet virksomhed får ikke selskabsskat.',
-    };
-  }
-
-  const permanente = grundlag.ikkeFradrag + grundlag.stiftelse + grundlag.skattekontoRente;
-  const foerUnderskud = grundlag.resultatFoerSkat + permanente + grundlag.regnskabsafskrivning - grundlag.skatteafskrivning;
-  const kanModregnes = foerUnderskud >= 0
-    ? begraens(grundlag.modregnetUnderskud, foerUnderskud)
-    : begraens(grundlag.modregnetUnderskud, -foerUnderskud);
-  const efterModregning = foerUnderskud >= 0 ? foerUnderskud - kanModregnes : foerUnderskud + kanModregnes;
-  const brugtFremfoert = begraens(grundlag.fremfoertUnderskud, Math.max(efterModregning, 0));
-  const skattepligtig = efterModregning - brugtFremfoert;
-  const aktuelSkat = skattepligtig > 0 ? Math.round(skattepligtig * procent / 100) : 0;
-  const restUnderskud = skattepligtig < 0 ? -skattepligtig : 0;
-  const udskudtSkat = udskudt(grundlag, procent);
-
-  const linjer: SkatLinje[] = [
-    { tekst: 'Resultat før skat', beloeb: grundlag.resultatFoerSkat },
-    { tekst: 'Ikke fradragsberettigede omkostninger', beloeb: grundlag.ikkeFradrag },
-    { tekst: 'Stiftelsesomkostninger', beloeb: grundlag.stiftelse },
-    { tekst: 'Renter til Skattekontoen', beloeb: grundlag.skattekontoRente },
-    { tekst: 'Regnskabsmæssige afskrivninger', beloeb: grundlag.regnskabsafskrivning },
-    { tekst: 'Skattemæssige afskrivninger', beloeb: -grundlag.skatteafskrivning },
-  ];
-  if (grundlag.sambeskatning && kanModregnes !== 0) {
-    linjer.push({ tekst: 'Modregnet underskud fra sambeskattede selskaber', beloeb: foerUnderskud >= 0 ? -kanModregnes : kanModregnes });
-  }
-  linjer.push({ tekst: 'Fremført underskud', beloeb: -brugtFremfoert });
-  linjer.push({ tekst: 'Skattepligtig indkomst', beloeb: skattepligtig });
-  linjer.push({ tekst: `Årets skat ${procent} %`, beloeb: aktuelSkat });
-
-  return {
-    linjer: linjer.filter((linje, indeks) => indeks === 0 || indeks >= linjer.length - 3 || linje.beloeb !== 0),
-    skattepligtigIndkomst: skattepligtig,
-    aktuelSkat,
-    udskudtSkat,
-    resultatEfterSkat: grundlag.resultatFoerSkat - aktuelSkat,
-    nytFremfoertUnderskud: grundlag.fremfoertUnderskud - brugtFremfoert + restUnderskud,
-    balanceTekst: grundlag.sambeskatning && !grundlag.administrationsselskab ? 'Skyldigt sambeskatningsbidrag' : 'Skyldig selskabsskat',
-    note: `Selskabsskatten er beregnet med ${procent} %.`,
-    fejl: null,
-  };
+export function rundOere(vaerdi: number): number {
+  return Math.sign(vaerdi) * Math.round(Math.abs(vaerdi)) + 0;
 }
 
-export function beregnSambeskatning(selskaber: SelskabIKreds[], procent = SELSKABSSKAT_PROCENT): { fejl: string | null; selskaber: (SkatResultat & { navn: string })[]; skyldigTilSkat: number; tilgodehavende: number } {
-  if (selskaber.some((selskab) => selskab.grundlag.form === 'enkeltmand')) {
-    return { fejl: 'En personligt ejet virksomhed kan ikke indgå i sambeskatning.', selskaber: [], skyldigTilSkat: 0, tilgodehavende: 0 };
+export function skatAf(indkomst: number, procent = SELSKABSSKAT_PROCENT): number {
+  return indkomst > 0 ? rundOere(indkomst * procent / 100) : 0;
+}
+
+export function udskudtSkatAfForskel(regnskabsvaerdi: number, skattevaerdi: number, procent = SELSKABSSKAT_PROCENT): number {
+  return rundOere((regnskabsvaerdi - skattevaerdi) * procent / 100);
+}
+
+export function beregnUdskudtSkat(regnskabsvaerdi: number | null, skattevaerdi: number | null, procent = SELSKABSSKAT_PROCENT): number | null {
+  if (regnskabsvaerdi === null || skattevaerdi === null) return null;
+  return udskudtSkatAfForskel(regnskabsvaerdi, skattevaerdi, procent);
+}
+
+export function beregnSkat(grundlag: SkatGrundlag, procent = SELSKABSSKAT_PROCENT): SkatResultat {
+  if (!erSelskab(grundlag.form)) {
+    return frys({
+      linjer: [],
+      skattepligtigIndkomst: 0,
+      aktuelSkat: 0,
+      udskudtSkat: null,
+      resultatEfterSkat: grundlag.resultatFoerSkat,
+      nytFremfoertUnderskud: 0,
+      balanceTekst: null,
+      note: null,
+      haeftelse: null,
+      fejl: grundlag.sambeskatning
+        ? 'En personligt ejet virksomhed får ikke selskabsskat og kan ikke indgå i sambeskatning.'
+        : 'En personligt ejet virksomhed får ikke selskabsskat.',
+    });
   }
-  const foer = selskaber.map((selskab) => indkomstFoerUnderskud(selskab.grundlag));
-  const modregnet = fordelModregning(foer);
-  const resultater = selskaber.map((selskab, indeks) => ({
-    navn: selskab.navn,
-    ...beregnSkat({
-      ...selskab.grundlag,
-      form: 'aps',
-      sambeskatning: true,
-      modregnetUnderskud: modregnet[indeks] ?? 0,
-    }, procent),
-  }));
-  const skyldigTilSkat = resultater.reduce((sum, selskab) => sum + selskab.aktuelSkat, 0);
-  const tilgodehavende = resultater
-    .filter((selskab) => !selskaber.find((kandidat) => kandidat.navn === selskab.navn)?.grundlag.administrationsselskab)
-    .reduce((sum, selskab) => sum + selskab.aktuelSkat, 0);
-  return {
+
+  const foerUnderskud = indkomstFoerUnderskud(grundlag);
+  const brugtFremfoert = begraens(grundlag.fremfoertUnderskud, Math.max(foerUnderskud, 0));
+  const efterFremfoert = foerUnderskud - brugtFremfoert;
+  const modregning = grundlag.sambeskatning ? begraens(grundlag.modregnetUnderskud, Math.abs(efterFremfoert)) : 0;
+  const skattepligtig = efterFremfoert >= 0 ? efterFremfoert - modregning : efterFremfoert + modregning;
+  const aktuelSkat = skatAf(skattepligtig, procent);
+  const restUnderskud = skattepligtig < 0 ? -skattepligtig : 0;
+
+  const trin: SkatLinje[] = [
+    { tekst: BRO.ikkeFradrag, beloeb: grundlag.ikkeFradrag },
+    { tekst: BRO.stiftelse, beloeb: grundlag.stiftelse },
+    { tekst: BRO.skattekontoRente, beloeb: grundlag.skattekontoRente },
+    { tekst: BRO.regnskabsafskrivning, beloeb: grundlag.regnskabsafskrivning },
+    { tekst: BRO.skatteafskrivning, beloeb: -grundlag.skatteafskrivning },
+    { tekst: BRO.fremfoert, beloeb: -brugtFremfoert },
+    efterFremfoert >= 0
+      ? { tekst: BRO.modregnet, beloeb: -modregning }
+      : { tekst: BRO.afgivet, beloeb: modregning },
+  ];
+
+  return frys({
+    linjer: [
+      { tekst: BRO.resultat, beloeb: grundlag.resultatFoerSkat },
+      ...trin.filter((linje) => linje.beloeb !== 0),
+      { tekst: BRO.skattepligtig, beloeb: skattepligtig },
+      { tekst: aaretsSkatTekst(procent), beloeb: aktuelSkat },
+    ],
+    skattepligtigIndkomst: skattepligtig,
+    aktuelSkat,
+    udskudtSkat: beregnUdskudtSkat(grundlag.regnskabsvaerdiAnlaeg, grundlag.skattevaerdiAnlaeg, procent),
+    resultatEfterSkat: grundlag.resultatFoerSkat - aktuelSkat,
+    nytFremfoertUnderskud: Math.max(grundlag.fremfoertUnderskud, 0) - brugtFremfoert + restUnderskud,
+    balanceTekst: grundlag.sambeskatning && !grundlag.administrationsselskab ? 'Skyldigt sambeskatningsbidrag' : 'Skyldig selskabsskat',
+    note: `Selskabsskatten er beregnet med ${procent} %.`,
+    haeftelse: grundlag.sambeskatning ? HAEFTELSESTEKST : null,
     fejl: null,
-    selskaber: resultater.map((selskab) => ({ ...selskab, note: HAEFTELSESTEKST })),
-    skyldigTilSkat,
-    tilgodehavende,
-  };
+  });
+}
+
+export function kontrollerSkattebro(resultat: SkatResultat, procent = SELSKABSSKAT_PROCENT): string[] {
+  if (resultat.fejl !== null) return [];
+  const fejl: string[] = [];
+  const indeks = resultat.linjer.findIndex((linje) => linje.tekst === BRO.skattepligtig);
+  const skatLinje = resultat.linjer.find((linje) => linje.tekst === aaretsSkatTekst(procent));
+  if (indeks < 1 || !skatLinje) return ['Skattebroen mangler trin.'];
+  const sumAfTrin = resultat.linjer.slice(0, indeks).reduce((sum, linje) => sum + linje.beloeb, 0);
+  if (sumAfTrin !== resultat.linjer[indeks].beloeb || sumAfTrin !== resultat.skattepligtigIndkomst) {
+    fejl.push('Trinene i skattebroen giver ikke den skattepligtige indkomst.');
+  }
+  const beregnet = skatAf(sumAfTrin, procent);
+  if (skatLinje.beloeb !== beregnet || resultat.aktuelSkat !== beregnet) {
+    fejl.push('Årets skat er ikke den beregnede skat af den skattepligtige indkomst.');
+  }
+  if (resultat.resultatEfterSkat !== resultat.linjer[0].beloeb - resultat.aktuelSkat) {
+    fejl.push('Resultat efter skat er ikke resultat før skat minus årets skat.');
+  }
+  return fejl;
+}
+
+export function beregnSambeskatning(selskaber: SelskabIKreds[], procent = SELSKABSSKAT_PROCENT): SambeskatningResultat {
+  const afvist = (fejl: string): SambeskatningResultat => ({ fejl, selskaber: [], skyldigTilSkat: 0, tilgodehavende: 0 });
+  if (selskaber.some((selskab) => !erSelskab(selskab.grundlag.form))) {
+    return afvist('En personligt ejet virksomhed kan ikke indgå i sambeskatning.');
+  }
+  if (selskaber.length < 2) return afvist('En sambeskatning kræver mindst to selskaber.');
+  if (new Set(selskaber.map((selskab) => selskab.navn)).size !== selskaber.length) {
+    return afvist('To selskaber i sambeskatningen har samme navn.');
+  }
+  const administration = selskaber.filter((selskab) => selskab.grundlag.administrationsselskab);
+  if (administration.length !== 1) return afvist('Sambeskatningen skal have præcis ét administrationsselskab.');
+  const admin = administration[0].navn;
+
+  const efterEgetUnderskud = selskaber.map((selskab) => {
+    const foer = indkomstFoerUnderskud(selskab.grundlag);
+    return foer - begraens(selskab.grundlag.fremfoertUnderskud, Math.max(foer, 0));
+  });
+  const modregnet = fordelModregning(efterEgetUnderskud);
+  const beregnede = selskaber.map((selskab, indeks) => ({
+    navn: selskab.navn,
+    administrationsselskab: selskab.grundlag.administrationsselskab,
+    skat: beregnSkat({ ...selskab.grundlag, sambeskatning: true, modregnetUnderskud: modregnet[indeks] ?? 0 }, procent),
+  }));
+
+  const skyldigTilSkat = beregnede.reduce((sum, selskab) => sum + selskab.skat.aktuelSkat, 0);
+  const bidragsydere = beregnede.filter((selskab) => !selskab.administrationsselskab && selskab.skat.aktuelSkat > 0);
+  const tilgodehavende = bidragsydere.reduce((sum, selskab) => sum + selskab.skat.aktuelSkat, 0);
+
+  const resultater = beregnede.map((selskab): SambeskattetSelskab => {
+    const balanceposter: Balancepost[] = [];
+    if (selskab.administrationsselskab) {
+      for (const yder of bidragsydere) {
+        balanceposter.push({ tekst: 'Tilgodehavende sambeskatningsbidrag', beloeb: yder.skat.aktuelSkat, modpart: yder.navn });
+      }
+      if (skyldigTilSkat > 0) balanceposter.push({ tekst: 'Skyldig selskabsskat', beloeb: skyldigTilSkat, modpart: 'Skattestyrelsen' });
+    } else if (selskab.skat.aktuelSkat > 0) {
+      balanceposter.push({ tekst: 'Skyldigt sambeskatningsbidrag', beloeb: selskab.skat.aktuelSkat, modpart: admin });
+    }
+    return frys({
+      ...selskab.skat,
+      linjer: selskab.skat.linjer.map((linje) => ({ ...linje })),
+      navn: selskab.navn,
+      administrationsselskab: selskab.administrationsselskab,
+      sambeskatningsbidrag: selskab.administrationsselskab ? 0 : selskab.skat.aktuelSkat,
+      balanceposter,
+      note: HAEFTELSESTEKST,
+      haeftelse: HAEFTELSESTEKST,
+    });
+  });
+
+  return { fejl: null, selskaber: resultater, skyldigTilSkat, tilgodehavende };
 }
 
 function indkomstFoerUnderskud(grundlag: SkatGrundlag): number {
@@ -169,9 +264,14 @@ function tildel(andele: number[], kan: number): number[] {
   return ud;
 }
 
-function udskudt(grundlag: SkatGrundlag, procent: number): number | null {
-  if (grundlag.regnskabsvaerdiAnlaeg === null || grundlag.skattevaerdiAnlaeg === null) return null;
-  return Math.round((grundlag.regnskabsvaerdiAnlaeg - grundlag.skattevaerdiAnlaeg) * procent / 100);
+function frys<T extends SkatResultat>(resultat: T): T {
+  resultat.linjer.forEach((linje) => Object.freeze(linje));
+  Object.freeze(resultat.linjer);
+  if ('balanceposter' in resultat && Array.isArray(resultat.balanceposter)) {
+    resultat.balanceposter.forEach((post) => Object.freeze(post));
+    Object.freeze(resultat.balanceposter);
+  }
+  return Object.freeze(resultat);
 }
 
 function begraens(oensket: number, loft: number): number {

@@ -1,3 +1,5 @@
+import type { BilagPost } from './bilag';
+import type { LaastPeriode } from './laas';
 import {
   dagenFoer,
   erForLang,
@@ -60,6 +62,30 @@ const ALIAS: Record<KolonneNoegle, string[]> = {
   periode: ['periode', 'bevaegelse', 'periodens bevaegelser', 'movement'],
   ultimo: ['ultimo', 'ultimosaldo', 'closing', 'ultimo saldo'],
 };
+
+export type KontoSaldo = {
+  konto: string;
+  beloeb: number;
+};
+
+export function saldobalanceFraBilag(poster: BilagPost[], _laaste: LaastPeriode[] = []): KontoSaldo[] {
+  const sum = new Map<string, number>();
+  for (const post of poster) {
+    sum.set(post.konto, (sum.get(post.konto) ?? 0) + post.beloeb);
+  }
+  return [...sum.entries()]
+    .map(([konto, beloeb]) => ({ konto, beloeb }))
+    .sort((a, b) => a.konto.localeCompare(b.konto, 'da'));
+}
+
+export function sumSaldo(saldi: KontoSaldo[]): number {
+  return saldi.reduce((acc, linje) => acc + linje.beloeb, 0);
+}
+
+export function primoStemmer(foersteAar: boolean, primo: number, sidsteUltimo: number): boolean {
+  if (foersteAar) return true;
+  return primo === sidsteUltimo;
+}
 
 export function kontrollerRegnskabsaar(aar: Regnskabsaar): string[] {
   if (!erIsoDato(aar.stiftet) || !erIsoDato(aar.fra) || !erIsoDato(aar.til)) {

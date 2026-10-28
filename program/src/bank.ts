@@ -58,8 +58,8 @@ export function momsAfLinje(linje: Banklinje): { salg: number; koeb: number } {
   if (linje.status !== 'stemmer' || linje.beloeb === null || !linje.momskode || linje.momskode === 'ingen') {
     return { salg: 0, koeb: 0 };
   }
-  const moms = Math.round(Math.abs(linje.beloeb) * 25 / 125);
-  return linje.momskode === 'salg25' ? { salg: moms, koeb: 0 } : { salg: 0, koeb: moms };
+  const moms = Math.sign(linje.beloeb) * Math.round(Math.abs(linje.beloeb) * 25 / 125);
+  return linje.momskode === 'salg25' ? { salg: moms, koeb: 0 } : { salg: 0, koeb: -moms };
 }
 
 export function momsAngivelse(linjer: Banklinje[]): { salgsmoms: number; koebsmoms: number; afgift: number } {
