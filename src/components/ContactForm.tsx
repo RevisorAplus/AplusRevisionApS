@@ -1,10 +1,33 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Send, Loader2 } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { supabase } from '../lib/supabase';
 
+const ADS_CONVERSION_SEND_TO = 'AW-18068750519/69UCISJhJgcELeB7adD';
+const INBOX = 'revisor@aplusrevision.dk';
+
+type Gtag = (...args: unknown[]) => void;
+
+function reportLeadConversion() {
+  const gtag = (window as Window & { gtag?: Gtag }).gtag;
+  if (typeof gtag !== 'function') return;
+  try {
+    gtag('event', 'conversion', { send_to: ADS_CONVERSION_SEND_TO });
+  } catch {
+    // A blocked ads script must not hide a lead that was already delivered.
+  }
+}
+
 interface ContactFormProps {
   source?: string;
+}
+
+interface LeadFields {
+  name: string;
+  email: string;
+  phone: string;
+  company: string;
+  message: string;
 }
 
 export function ContactForm({ source = 'contact_form' }: ContactFormProps) {
@@ -17,27 +40,54 @@ export function ContactForm({ source = 'contact_form' }: ContactFormProps) {
     message: '',
   });
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const conversionReported = useRef(false);
+
+  const reportOnce = () => {
+    if (conversionReported.current) return;
+    conversionReported.current = true;
+    reportLeadConversion();
+  };
+
+  const mailtoHref = (lead: LeadFields) => {
+    const subject = language === 'da' ? 'Ny henvendelse fra hjemmesiden' : 'New inquiry from the website';
+    const lines = [
+      `${language === 'da' ? 'Navn' : 'Name'}: ${lead.name}`,
+      `Email: ${lead.email}`,
+      `${language === 'da' ? 'Telefon' : 'Phone'}: ${lead.phone || '-'}`,
+      `${language === 'da' ? 'Virksomhed' : 'Company'}: ${lead.company || '-'}`,
+      `${language === 'da' ? 'Besked' : 'Message'}: ${lead.message || '-'}`,
+      `${language === 'da' ? 'Kilde' : 'Source'}: ${source}`,
+      `${language === 'da' ? 'Sprog' : 'Language'}: ${language}`,
+    ];
+    return `mailto:${INBOX}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join('\n'))}`;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatus('loading');
+    conversionReported.current = false;
 
-    const { error } = await supabase.from('contact_leads').insert({
-      name: formData.name,
-      email: formData.email,
-      phone: formData.phone,
-      company: formData.company,
-      message: formData.message,
-      source,
-      language,
-    });
+    try {
+      const { error } = await supabase.from('contact_leads').insert({
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        company: formData.company,
+        message: formData.message,
+        source,
+        language,
+      });
 
-    if (error) {
-      setStatus('error');
-    } else {
-      (window as any).gtag_report_conversion?.();
+      if (error) {
+        setStatus('error');
+        return;
+      }
+
+      reportOnce();
       setStatus('success');
       setFormData({ name: '', email: '', phone: '', company: '', message: '' });
+    } catch {
+      setStatus('error');
     }
   };
 
@@ -121,7 +171,17 @@ export function ContactForm({ source = 'contact_form' }: ContactFormProps) {
         />
       </div>
       {status === 'error' && (
-        <p className="text-red-600 text-sm">{t.contact.form.error}</p>
+        <div className="space-y-2">
+          <p className="text-red-600 text-sm">{t.contact.form.error}</p>
+          <p className="text-sm text-gray-600">{t.contact.form.emailFallbackHint}</p>
+          <a
+            href={mailtoHref(formData)}
+            onClick={reportOnce}
+            className="inline-flex text-sm font-medium text-primary-700 underline underline-offset-2"
+          >
+            {t.contact.form.emailFallback}
+          </a>
+        </div>
       )}
       <button
         type="submit"

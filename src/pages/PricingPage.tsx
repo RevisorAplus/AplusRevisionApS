@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { BookOpen, FileText, Receipt, Calculator, Lightbulb, Check, ArrowRight, Info } from 'lucide-react';
+import { BookOpen, FileText, Receipt, Calculator, Lightbulb, Users, Check, ArrowRight, Info } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 
 export function PricingPage() {
@@ -52,6 +52,13 @@ export function PricingPage() {
       description: t.services.vat.pricing || t.services.vat.shortDesc,
       pricing: t.services.vat.pricing || (language === 'da' ? 'Inkluderet eller efter aftale' : 'Included or by agreement'),
       link: '/services/vat',
+    },
+    {
+      icon: Users,
+      title: t.services.salary.title,
+      description: t.services.salary.shortDesc,
+      pricing: `195 DKK ${t.services.perEmployee}`,
+      link: '/services/salary',
     },
   ];
 
@@ -129,7 +136,7 @@ export function PricingPage() {
           <h2 className="text-2xl font-bold text-gray-900 mb-8 text-center">
             {language === 'da' ? 'Andre ydelser' : 'Other services'}
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {additionalServices.map((service, index) => {
               const Icon = service.icon;
               return (

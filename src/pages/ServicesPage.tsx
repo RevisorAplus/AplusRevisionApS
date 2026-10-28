@@ -1,4 +1,4 @@
-import { BookOpen, FileText, Receipt, Calculator, Lightbulb } from 'lucide-react';
+import { BookOpen, FileText, Receipt, Calculator, Lightbulb, Users } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { ServiceCard } from '../components/ServiceCard';
 
@@ -40,6 +40,14 @@ export function ServicesPage() {
       price: '495 DKK',
       priceUnit: t.services.perHour,
       link: '/services/advisory',
+    },
+    {
+      icon: Users,
+      title: t.services.salary.title,
+      description: t.services.salary.shortDesc,
+      price: '195 DKK',
+      priceUnit: t.services.perEmployee,
+      link: '/services/salary',
     },
   ];
 
