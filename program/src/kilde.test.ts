@@ -17,10 +17,22 @@ describe('kildeimport', () => {
   it('tager de mappede linjer med og lader den ukendte konto stå', () => {
     const resultat = indlaesKilde(fil, 'economic', mapping, []);
     expect(resultat.nye).toHaveLength(2);
-    expect(resultat.nye[0]).toMatchObject({ bilagsnummer: '104', konto: '1010', beloeb: kr(12_500) });
+    expect(resultat.nye[0]).toMatchObject({ bilagsnummer: '104', konto: '1010', beloeb: kr(12_500), fil: null });
     expect(resultat.undtagelser).toHaveLength(1);
     expect(resultat.undtagelser[0]).toMatchObject({ kildeKonto: '9999', beloeb: kr(-400) });
     expect(resultat.nye.length + resultat.undtagelser.length).toBe(3);
+  });
+
+  it('bevarer filnavnet fra en Fil-kolonne', () => {
+    const resultat = indlaesKilde(
+      'Bilag;Dato;Tekst;Konto;Beløb;Fil\n107;18.09.2024;Køb;1000;500,00;faktura.pdf',
+      'economic',
+      mapping,
+      [],
+    );
+
+    expect(resultat.nye).toHaveLength(1);
+    expect(resultat.nye[0].fil).toBe('faktura.pdf');
   });
 
   it('ændrer ikke antallet, når den samme fil køres igen', () => {

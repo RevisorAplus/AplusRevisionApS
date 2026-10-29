@@ -10,6 +10,7 @@ export type BilagPost = {
   beloeb: number;
   momskode: string;
   stornoAf: string | null;
+  fil?: string | null;
 };
 
 const LOENKONTO: Record<string, string> = {
@@ -42,6 +43,7 @@ export function indlaesLoenfil(tekst: string): { poster: BilagPost[]; personale:
       beloeb,
       momskode: '',
       stornoAf: null,
+      fil: 'loenfil.csv',
     });
   });
   if (poster.length === 0) return { poster, personale: 0, fejl: 'Lønfilen har ingen beløb.' };
@@ -70,6 +72,7 @@ export function tilbagefoer(poster: BilagPost[], id: string, dato: string): { po
     tekst: `Tilbageførsel ${fundet.tekst}`,
     beloeb: -fundet.beloeb,
     stornoAf: id,
+    fil: null,
   };
   return { poster: [...poster, modpost], fejl: null };
 }
@@ -77,7 +80,15 @@ export function tilbagefoer(poster: BilagPost[], id: string, dato: string): { po
 export function soegBilag(poster: BilagPost[], q: string): BilagPost[] {
   const soegning = noegle(q);
   if (!soegning) return poster;
-  return poster.filter((post) => noegle([post.tekst, post.bilagsnummer, post.konto, post.kilde, formatKroner(post.beloeb), String(post.beloeb / 100)].join(' ')).includes(soegning));
+  return poster.filter((post) =>
+    noegle(
+      [post.tekst, post.bilagsnummer, post.konto, post.kilde, post.fil ?? '', formatKroner(post.beloeb), String(post.beloeb / 100)].join(' '),
+    ).includes(soegning),
+  );
+}
+
+export function bilagUdenFil(poster: BilagPost[]): BilagPost[] {
+  return poster.filter((post) => !post.stornoAf && (post.fil == null || post.fil === ''));
 }
 
 function noegle(vaerdi: string): string {

@@ -10,6 +10,7 @@ export type KildeLinje = {
   kildeKonto: string;
   konto: string;
   beloeb: number;
+  fil?: string | null;
 };
 
 export type Undtagelse = {
@@ -132,6 +133,7 @@ function indlaesRaekker(
     const tekstlinje = (raekke[kolonner.tekst] ?? '').trim();
     const kildeKonto = (raekke[kolonner.konto] ?? '').trim();
     const beloeb = parseDanskBeloeb(raekke[kolonner.beloeb] ?? '');
+    const fil = kolonner.fil < 0 ? null : (raekke[kolonner.fil] ?? '').trim();
     if (!kildeKonto && beloeb === null && !tekstlinje) return;
     if (alleredeKendte.has(bilagsnummer)) {
       sprungetOver += 1;
@@ -146,7 +148,7 @@ function indlaesRaekker(
       undtagelser.push({ kilde, bilagsnummer, kildeKonto, beloeb, aarsag: 'Kontoen er ikke mappet. Den er ikke gættet.' });
       return;
     }
-    nye.push({ kilde, bilagsnummer, dato, tekst: tekstlinje, kildeKonto, konto, beloeb });
+    nye.push({ kilde, bilagsnummer, dato, tekst: tekstlinje, kildeKonto, konto, beloeb, fil });
   });
 
   return { nye, undtagelser, sprungetOver };
@@ -180,7 +182,7 @@ function undtagelseNoegle(linje: Undtagelse): string {
   return JSON.stringify([linje.kilde, linje.bilagsnummer, linje.kildeKonto, linje.beloeb, linje.aarsag]);
 }
 
-function laesKolonner(header: string[]): { bilag: number; dato: number; tekst: number; konto: number; beloeb: number } {
+function laesKolonner(header: string[]): { bilag: number; dato: number; tekst: number; konto: number; beloeb: number; fil: number } {
   const find = (navne: string[], ellers: number) => {
     const indeks = findKolonne(header, navne);
     return indeks < 0 ? ellers : indeks;
@@ -191,6 +193,7 @@ function laesKolonner(header: string[]): { bilag: number; dato: number; tekst: n
     tekst: find(['tekst', 'bogfoeringstekst', 'beskrivelse', 'text', 'entry text', 'description'], 2),
     konto: find(['konto', 'kildekonto', 'kontonr', 'konto nr', 'kontonummer', 'account', 'account id', 'account no', 'account number', 'source account'], 3),
     beloeb: find(['beloeb', 'belob', 'beloeb dkk', 'amount', 'amount dkk'], 4),
+    fil: findKolonne(header, ['fil', 'filnavn', 'dokument']),
   };
 }
 

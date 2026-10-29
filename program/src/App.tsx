@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AdminSkærm } from './AdminView';
 import { AnlaegSkærm } from './AnlaegView';
 import { BilagSkærm } from './BilagView';
@@ -36,6 +36,15 @@ const SKAERME: { id: Skærm; label: string }[] = [
   { id: 'saldobalance', label: 'Saldobalance' },
 ];
 
+type Bruger = 'revisor' | 'kunde';
+
+const BRUGERE: { id: Bruger; label: string }[] = [
+  { id: 'revisor', label: 'Revisor' },
+  { id: 'kunde', label: 'Kunde' },
+];
+
+const KUNDE_SKAERME: Skærm[] = ['bogfoering', 'bilag', 'moms', 'anlaeg', 'aarsregnskab', 'kontrol', 'specifikation', 'saldobalance'];
+
 const TOM: Regnskabsaar = { stiftet: '', fra: '', til: '', foersteAar: true };
 
 function laastePerioder(linjer: Banklinje[], laast: boolean): LaastPeriode[] {
@@ -55,14 +64,22 @@ function App() {
   const [momskonto, setMomskonto] = useState(0);
   const [aarLaast, setAarLaast] = useState(false);
   const [saldo, setSaldo] = useState<ImportResultat | null>(null);
-  const model = useRegnskab(aarLaast);
+  const [saldoAar, setSaldoAar] = useState<Regnskabsaar | null>(null);
+  const [bruger, setBruger] = useState<Bruger>('revisor');
+  const model = useRegnskab(aarLaast, saldo, saldoAar);
+  const synlige = bruger === 'revisor' ? SKAERME : SKAERME.filter((punkt) => KUNDE_SKAERME.includes(punkt.id));
+  const aktiv: Skærm = synlige.some((punkt) => punkt.id === skaerm) ? skaerm : 'bogfoering';
+  const onSaldo = useCallback((resultat: ImportResultat | null, aar: Regnskabsaar) => {
+    setSaldo(resultat);
+    setSaldoAar(aar);
+  }, []);
   const laaste = useMemo<LaastPeriode[]>(
     () => [...laastePerioder(linjer, maanedLaast), ...(aarLaast ? [{ fra: model.periode.fra, til: model.periode.til }] : [])],
     [linjer, maanedLaast, aarLaast, model.periode.fra, model.periode.til],
   );
   const kontrol = beregnKontrol(model, { bankLukket: maanedLaast, momsStemmer: momsKontrol(linjer, momskonto), saldo });
 
-  const vis = (id: Skærm) => ({ hidden: skaerm !== id });
+  const vis = (id: Skærm) => ({ hidden: aktiv !== id });
 
   return (
     <main className="app">
@@ -70,9 +87,17 @@ function App() {
         <strong>Programmet</strong>
         <span>Bogføring og årsregnskab</span>
       </div>
+      <div className="bruger" role="group" aria-label="Bruger">
+        <span>Du bruger Programmet som</span>
+        {BRUGERE.map((valg) => (
+          <button key={valg.id} type="button" aria-pressed={bruger === valg.id} onClick={() => setBruger(valg.id)}>
+            {valg.label}
+          </button>
+        ))}
+      </div>
       <nav className="menu" aria-label="Sektioner">
-        {SKAERME.map((punkt) => (
-          <button key={punkt.id} type="button" aria-current={skaerm === punkt.id ? 'page' : undefined} onClick={() => setSkaerm(punkt.id)}>
+        {synlige.map((punkt) => (
+          <button key={punkt.id} type="button" aria-current={aktiv === punkt.id ? 'page' : undefined} onClick={() => setSkaerm(punkt.id)}>
             {punkt.label}
           </button>
         ))}
@@ -86,18 +111,18 @@ function App() {
       <div {...vis('kontrol')}><Kontrol model={model} kontrol={kontrol} aarLaast={aarLaast} onLaas={() => { if (kontrol.kanLaase) setAarLaast(true); }} /></div>
       <div {...vis('specifikation')}><SpecifikationSkærm /></div>
       <div {...vis('admin')}><AdminSkærm /></div>
-      <div {...vis('saldobalance')}><SaldobalanceSkærm onResultat={setSaldo} /></div>
+      <div {...vis('saldobalance')}><SaldobalanceSkærm onResultat={onSaldo} /></div>
     </main>
   );
 }
 
-function SaldobalanceSkærm({ onResultat }: { onResultat: (resultat: ImportResultat | null) => void }) {
+function SaldobalanceSkærm({ onResultat }: { onResultat: (resultat: ImportResultat | null, aar: Regnskabsaar) => void }) {
   const [aar, setAar] = useState<Regnskabsaar>(TOM);
   const [tekst, setTekst] = useState('');
   const [filnavn, setFilnavn] = useState('');
 
   const resultat = useMemo(() => (tekst.trim() ? indlaesSaldobalance(tekst, aar) : null), [tekst, aar]);
-  useEffect(() => onResultat(resultat), [resultat, onResultat]);
+  useEffect(() => onResultat(resultat, aar), [resultat, aar, onResultat]);
   const aarFejl = aar.stiftet || aar.fra || aar.til ? kontrollerRegnskabsaar(aar) : [];
   const viserPrimos = resultat?.linjer.some((linje) => linje.primo !== null || linje.periode !== null || linje.ultimo !== null) ?? false;
 

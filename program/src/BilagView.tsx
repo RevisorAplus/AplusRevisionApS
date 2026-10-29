@@ -122,18 +122,20 @@ export function BilagSkærm({ laaste = [] }: { laaste?: LaastPeriode[] }) {
               <th>Tekst</th>
               <th>Konto</th>
               <th>Kilde</th>
+              <th>Fil</th>
               <th className="tal">Beløb</th>
               <th>Handling</th>
             </tr>
           </thead>
           <tbody>
-            {viste.length === 0 ? <tr><td colSpan={7}>Ingen bilag endnu.</td></tr> : viste.map((post) => (
+            {viste.length === 0 ? <tr><td colSpan={8}>Ingen bilag endnu.</td></tr> : viste.map((post) => (
               <tr key={post.id}>
                 <td>{post.bilagsnummer}</td>
                 <td>{formatDato(post.dato)}</td>
                 <td>{post.tekst}</td>
                 <td>{post.konto} {konto(post.konto)?.navn ?? ''}</td>
                 <td>{post.kilde === 'loen' ? 'Løn' : post.kilde}</td>
+                <td className="bryd">{post.fil ? post.fil : '—'}</td>
                 <td className="tal">{formatKroner(post.beloeb)}</td>
                 <td>
                   {post.stornoAf ? 'Tilbageførsel' : (

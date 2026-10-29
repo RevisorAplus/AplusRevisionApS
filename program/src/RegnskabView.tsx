@@ -7,21 +7,24 @@ import {
   kontrollerAar,
   medtagLedelsespateegning,
   postFindes,
+  posterFraSaldobalance,
   type Poster,
   type Rapport,
   type RapportLinje,
 } from './aar';
 import { koerKartotek, afskrivningStemmer, type Anlaeg, type Kartotek } from './anlaeg';
-import { alleKontrollerOk, bygUdtraek, indsendelsesTekst, kanIndsende, udtraekSomTekst } from './indsendelse';
+import { alleKontrollerOk, indsendelsesTekst, kanIndsende } from './indsendelse';
+import { bygIxbrl } from './xbrl';
 import { PLIGTIGE_NOTER, bygNoter, manglendeNoter, type Note } from './noter';
 import { formatDato, formatKroner, parseDanskBeloeb } from './penge';
-import { HAEFTELSESTEKST, kontrollerSkattebro } from './skat';
+import { BRO, HAEFTELSESTEKST, beregnSambeskatning, kontrollerSkattebro, type SambeskatningResultat, type SkatGrundlag } from './skat';
 import { kontrollerRegnskabsaar, type ImportResultat, type Regnskabsaar } from './saldobalance';
 
 const kr = (kroner: number) => Math.round(kroner * 100);
 
 const SELSKAB = 'Eksempel Drift ApS';
 const STIFTET = '2024-06-07';
+const HOLDING = 'Holding';
 
 const AAR = {
   foerste: { fra: '2024-06-07', til: '2025-08-31' },
@@ -53,6 +56,9 @@ export type Valg = {
   fremfoert: number;
   udbytte: number;
   overfoertManuel: number | null;
+  holding: number;
+  saldo: ImportResultat | null;
+  saldoAar: Regnskabsaar | null;
 };
 
 type Eksempel = {
@@ -64,6 +70,14 @@ type Eksempel = {
   manglende: string[];
   bogfoertAfskrivning: number;
   periode: { fra: string; til: string };
+  forrigePeriode: { fra: string; til: string } | null;
+  forrigeRapport: Rapport | null;
+  kilde: 'eksempel' | 'saldobalance';
+  foersteAarIBrug: boolean;
+  stiftet: string;
+  umappede: string[];
+  sambeskatningResultat: SambeskatningResultat | null;
+  sambeskatningFejl: string | null;
 };
 
 function byggPoster(valg: Valg, kartotek: Kartotek, forrige: Eksempel | null): Poster[] {
@@ -90,34 +104,94 @@ function byggPoster(valg: Valg, kartotek: Kartotek, forrige: Eksempel | null): P
 }
 
 export function byggEksempel(valg: Valg): Eksempel {
-  const periode = valg.foersteAar ? AAR.foerste : AAR.andet;
-  const anlaeg = anlaegFor(valg.foersteAar);
+  const fil = valg.saldo !== null && valg.saldo.status === 'klar' ? valg.saldo : null;
+  const fraFil = fil
+    ? posterFraSaldobalance(fil.linjer.map((linje) => ({ kontonummer: linje.kontonummer, navn: linje.navn, beloeb: linje.beloeb ?? 0 })))
+    : null;
+  const aarFraFil = fil && valg.saldoAar && valg.saldoAar.fra !== '' && valg.saldoAar.til !== '' ? valg.saldoAar : null;
+  const foersteAar = aarFraFil ? aarFraFil.foersteAar : valg.foersteAar;
+  const stiftet = aarFraFil && aarFraFil.stiftet !== '' ? aarFraFil.stiftet : STIFTET;
+  const periode = aarFraFil
+    ? { fra: aarFraFil.fra, til: aarFraFil.til }
+    : (fil?.filPeriode ?? (valg.foersteAar ? AAR.foerste : AAR.andet));
+  const anlaeg = fil ? [] : anlaegFor(valg.foersteAar);
   const kartotek = koerKartotek(anlaeg, periode.fra, periode.til);
-  const forrige = valg.foersteAar
+  const forrige = foersteAar || fil
     ? null
-    : byggEksempel({ ...valg, foersteAar: true, afviger: false, laan: false, varelager: false, valuta: false, udbytte: 0, overfoertManuel: null });
-  const poster = byggPoster(valg, kartotek, forrige);
+    : byggEksempel({ ...valg, foersteAar: true, afviger: false, laan: false, varelager: false, valuta: false, udbytte: 0, overfoertManuel: null, saldo: null });
+  const poster = fraFil ? fraFil.poster : byggPoster(valg, kartotek, forrige);
+  const sum = (rolle: Poster['rolle']) => poster.filter((post) => post.rolle === rolle).reduce((acc, post) => acc + post.beloeb, 0);
+  const indkomstAar = Number(periode.til.slice(0, 4));
   const faelles = {
     form: 'aps' as const,
-    foersteAar: valg.foersteAar,
+    foersteAar,
     klasseB: true,
     poster,
-    skatteafskrivning: skatteafskrivningIAaret(valg.foersteAar),
+    skatteafskrivning: fil ? 0 : skatteafskrivningIAaret(valg.foersteAar),
     fremfoertUnderskud: valg.fremfoert,
-    modregnetUnderskud: valg.sambeskatning ? kr(20_000) : 0,
+    modregnetUnderskud: 0,
     sambeskatning: valg.sambeskatning,
     administrationsselskab: false,
-    regnskabsvaerdiAnlaeg: kartotek.ultimo,
-    skattevaerdiAnlaeg: kartotek.skattemaessigVaerdi,
-    harSidsteAar: !valg.foersteAar,
+    regnskabsvaerdiAnlaeg: fil ? null : kartotek.ultimo,
+    skattevaerdiAnlaeg: fil ? null : kartotek.skattemaessigVaerdi,
+    harSidsteAar: forrige !== null,
     udbytte: valg.udbytte,
     sidsteAarsRapport: forrige?.rapport,
+    indkomstAar,
   };
-  const udkast = bygRapport({ ...faelles, overfoert: 0 });
-  const overfoert = valg.overfoertManuel ?? udkast.aaretsResultat - valg.udbytte;
-  const rapport = bygRapport({ ...faelles, overfoert });
 
-  const sum = (rolle: Poster['rolle']) => poster.filter((post) => post.rolle === rolle).reduce((acc, post) => acc + post.beloeb, 0);
+  let modregnet = 0;
+  let sambeskatningResultat: SambeskatningResultat | null = null;
+  if (valg.sambeskatning) {
+    const grundUdkast = bygRapport({ ...faelles, overfoert: 0 });
+    const drift: SkatGrundlag = {
+      form: 'aps',
+      resultatFoerSkat: grundUdkast.skat.linjer.find((linje) => linje.tekst === BRO.resultat)?.beloeb ?? 0,
+      ikkeFradrag: sum('ikke-fradrag'),
+      stiftelse: sum('stiftelse'),
+      skattekontoRente: sum('skattekonto-rente'),
+      regnskabsafskrivning: sum('regnskabsafskrivning'),
+      skatteafskrivning: faelles.skatteafskrivning,
+      fremfoertUnderskud: valg.fremfoert,
+      modregnetUnderskud: 0,
+      sambeskatning: true,
+      administrationsselskab: false,
+      regnskabsvaerdiAnlaeg: faelles.regnskabsvaerdiAnlaeg,
+      skattevaerdiAnlaeg: faelles.skattevaerdiAnlaeg,
+      indkomstAar,
+    };
+    const holding: SkatGrundlag = {
+      form: 'aps',
+      resultatFoerSkat: valg.holding,
+      ikkeFradrag: 0,
+      stiftelse: 0,
+      skattekontoRente: 0,
+      regnskabsafskrivning: 0,
+      skatteafskrivning: 0,
+      fremfoertUnderskud: 0,
+      modregnetUnderskud: 0,
+      sambeskatning: true,
+      administrationsselskab: true,
+      regnskabsvaerdiAnlaeg: null,
+      skattevaerdiAnlaeg: null,
+      indkomstAar,
+    };
+    sambeskatningResultat = beregnSambeskatning([
+      { navn: SELSKAB, grundlag: drift },
+      { navn: HOLDING, grundlag: holding },
+    ]);
+    if (sambeskatningResultat.fejl === null) {
+      const egen = sambeskatningResultat.selskaber.find((selskab) => !selskab.administrationsselskab);
+      const modregnetLinje = egen?.linjer.find((linje) => linje.tekst === BRO.modregnet);
+      const afgivetLinje = egen?.linjer.find((linje) => linje.tekst === BRO.afgivet);
+      modregnet = modregnetLinje ? -modregnetLinje.beloeb : (afgivetLinje?.beloeb ?? 0);
+    }
+  }
+
+  const udkast = bygRapport({ ...faelles, modregnetUnderskud: modregnet, overfoert: 0 });
+  const overfoert = valg.overfoertManuel ?? udkast.aaretsResultat - valg.udbytte;
+  const rapport = bygRapport({ ...faelles, modregnetUnderskud: modregnet, overfoert });
+
   const mellemregning = sum('mellemregning-ejer');
   const egenkapitalUltimo = rapport.egenkapital.reduce((acc, linje) => acc + linje.beloeb, 0);
   const noter = bygNoter({
@@ -144,24 +218,33 @@ export function byggEksempel(valg: Valg): Eksempel {
     manglende: manglendeNoter(rapport.notePoster, noter.noter),
     bogfoertAfskrivning: sum('regnskabsafskrivning'),
     periode,
+    forrigePeriode: forrige ? forrige.periode : null,
+    forrigeRapport: forrige ? forrige.rapport : null,
+    kilde: fil ? 'saldobalance' : 'eksempel',
+    foersteAarIBrug: foersteAar,
+    stiftet,
+    umappede: fraFil ? fraFil.umappede : [],
+    sambeskatningResultat,
+    sambeskatningFejl: sambeskatningResultat?.fejl ?? null,
   };
 }
 
 export type RegnskabModel = ReturnType<typeof useRegnskab>;
 
-export function useRegnskab(aarLaast = false) {
+export function useRegnskab(aarLaast = false, saldo: ImportResultat | null = null, saldoAar: Regnskabsaar | null = null) {
   const [foersteAar, setFoersteAar] = useState(true);
   const [sambeskatning, setSambeskatning] = useState(false);
   const [laan, setLaan] = useState(false);
   const [varelager, setVarelager] = useState(false);
   const [valuta, setValuta] = useState(false);
   const [afviger, setAfviger] = useState(false);
-  const [fremfoert, setFremfoert] = useState('20.000,00');
+  const [fremfoert, setFremfoert] = useState('0,00');
   const [udbytte, setUdbytte] = useState('0,00');
   const [overfoert, setOverfoert] = useState<string | null>(null);
   const [afklaring, setAfklaring] = useState('');
   const [varelagerBekaertet, setVarelagerBekaertet] = useState(false);
   const [valutaKursSat, setValutaKursSat] = useState(false);
+  const [holdingResultat, setHoldingResultat] = useState('0,00');
 
   const eksempel = useMemo(
     () =>
@@ -175,8 +258,11 @@ export function useRegnskab(aarLaast = false) {
         fremfoert: parseDanskBeloeb(fremfoert) ?? 0,
         udbytte: parseDanskBeloeb(udbytte) ?? 0,
         overfoertManuel: overfoert === null ? null : (parseDanskBeloeb(overfoert) ?? 0),
+        holding: parseDanskBeloeb(holdingResultat) ?? 0,
+        saldo,
+        saldoAar,
       }),
-    [foersteAar, sambeskatning, laan, varelager, valuta, afviger, fremfoert, udbytte, overfoert],
+    [foersteAar, sambeskatning, laan, varelager, valuta, afviger, fremfoert, udbytte, overfoert, holdingResultat, saldo, saldoAar],
   );
 
   const medLaas = <T,>(saet: (vaerdi: T) => void) => (vaerdi: T) => {
@@ -186,7 +272,7 @@ export function useRegnskab(aarLaast = false) {
   return {
     ...eksempel,
     udbytteOere: parseDanskBeloeb(udbytte) ?? 0,
-    foersteAar, setFoersteAar: medLaas(setFoersteAar),
+    foersteAar: eksempel.foersteAarIBrug, setFoersteAar: medLaas(setFoersteAar),
     sambeskatning, setSambeskatning: medLaas(setSambeskatning),
     laan, setLaan: medLaas(setLaan),
     varelager, setVarelager: medLaas(setVarelager),
@@ -198,6 +284,7 @@ export function useRegnskab(aarLaast = false) {
     afklaring, setAfklaring: medLaas(setAfklaring),
     varelagerBekaertet, setVarelagerBekaertet: medLaas(setVarelagerBekaertet),
     valutaKursSat, setValutaKursSat: medLaas(setValutaKursSat),
+    holdingResultat, setHoldingResultat: medLaas(setHoldingResultat),
   };
 }
 
@@ -217,7 +304,7 @@ export function beregnKontrol(
   const eksempelSum = poster.reduce((acc, post) => acc + post.beloeb, 0);
   const mellemregning = poster.filter((post) => post.rolle === 'mellemregning-ejer').reduce((acc, post) => acc + post.beloeb, 0);
   const brodfejl = kontrollerSkattebro(rapport.skat);
-  const aar: Regnskabsaar = { stiftet: STIFTET, fra: model.periode.fra, til: model.periode.til, foersteAar: model.foersteAar };
+  const aar: Regnskabsaar = { stiftet: model.stiftet, fra: model.periode.fra, til: model.periode.til, foersteAar: model.foersteAar };
   return kontrollerAar({
     form: 'aps',
     saldoSum: udefra.saldo?.sum ?? eksempelSum,
@@ -226,7 +313,7 @@ export function beregnKontrol(
     udbytte: model.udbytteOere,
     momsStemmer: udefra.momsStemmer,
     bankLukket: udefra.bankLukket,
-    skatFejl: rapport.skat.fejl ?? (brodfejl.length > 0 ? brodfejl.join(' ') : null),
+    skatFejl: model.sambeskatningFejl ?? rapport.skat.fejl ?? (brodfejl.length > 0 ? brodfejl.join(' ') : null),
     mellemregningEjer: mellemregning,
     afklaring: model.afklaring,
     varelagerFindes: postFindes(poster, 'varelager'),
@@ -240,7 +327,7 @@ export function beregnKontrol(
     balanceForskel: rapport.balanceForskel,
     manglendeNoter: model.manglende,
     regnskabsaarFejl: kontrollerRegnskabsaar(aar),
-    kontiUdenLinje: kontiUdenLinje(rapport, poster),
+    kontiUdenLinje: [...kontiUdenLinje(rapport, poster), ...model.umappede],
   });
 }
 
@@ -258,7 +345,10 @@ export function Regnskab({ model, kontrol, aarLaast }: { model: RegnskabModel; k
       <header className="top">
         <h1>Årsregnskab</h1>
         <p>
-          {SELSKAB} · {formatDato(model.periode.fra)}–{formatDato(model.periode.til)}. Tallene kommer fra saldobalancen og er regnet ud.
+          {SELSKAB} · {formatDato(model.periode.fra)}–{formatDato(model.periode.til)}.{' '}
+          {model.kilde === 'saldobalance'
+            ? 'Tallene kommer fra den godkendte saldobalance og er regnet ud.'
+            : 'Tallene er et eksempel. Godkend en saldobalance under Saldobalance for at bruge egne tal.'}
           {rapport.sammenligning ? ' Sidste år står i egen kolonne.' : ' Det er første år, så der er ingen kolonne til sidste år.'}
         </p>
       </header>
@@ -277,6 +367,7 @@ export function Regnskab({ model, kontrol, aarLaast }: { model: RegnskabModel; k
 
       <Linjetabel titel="Resultat" linjer={rapport.resultat} sammenligning={rapport.sammenligning} />
       <Skattebro model={model} fejl={brodfejl} />
+      <Sambeskatning model={model} />
       <Linjetabel titel="Aktiver" linjer={rapport.balanceAktiver} sammenligning={rapport.sammenligning} />
       <Linjetabel titel="Egenkapital" linjer={rapport.egenkapital} sammenligning={rapport.sammenligning} />
       <Linjetabel titel="Gæld" linjer={rapport.gaeld} sammenligning={rapport.sammenligning} />
@@ -356,11 +447,42 @@ export function Kontrol({
   onLaas: () => void;
 }) {
   const { rapport } = model;
-  const [udtraek, setUdtraek] = useState<string | null>(null);
+  const [cvr, setCvr] = useState('');
+  const [bedt, setBedt] = useState(false);
   const mellemregning = model.poster.filter((post) => post.rolle === 'mellemregning-ejer').reduce((acc, post) => acc + post.beloeb, 0);
-  const udenLinje = kontiUdenLinje(rapport, model.poster);
+  const udenLinje = [...kontiUdenLinje(rapport, model.poster), ...model.umappede];
   const alleOk = alleKontrollerOk(kontrol.linjer);
   const erLaan = erKapitalejerlaan('aps', mellemregning);
+  const klarTilFil = kanIndsende(alleOk, aarLaast);
+  const ixbrl = useMemo(() => {
+    if (!bedt || !klarTilFil) return null;
+    const sum = (linjer: RapportLinje[]) => linjer.reduce((acc, linje) => acc + linje.beloeb, 0);
+    const forrige = model.forrigeRapport;
+    const egenkapital = sum(rapport.egenkapital);
+    return bygIxbrl({
+      selskab: SELSKAB,
+      cvr,
+      fra: model.periode.fra,
+      til: model.periode.til,
+      foersteAar: model.foersteAar,
+      profitLossOere: rapport.aaretsResultat,
+      assetsOere: sum(rapport.balanceAktiver),
+      equityOere: egenkapital,
+      liabilitiesAndEquityOere: egenkapital + sum(rapport.gaeld),
+      ...(rapport.sammenligning && forrige && model.forrigePeriode
+        ? {
+            sidsteAar: {
+              fra: model.forrigePeriode.fra,
+              til: model.forrigePeriode.til,
+              profitLossOere: forrige.aaretsResultat,
+              assetsOere: sum(forrige.balanceAktiver),
+              equityOere: sum(forrige.egenkapital),
+              liabilitiesAndEquityOere: sum(forrige.egenkapital) + sum(forrige.gaeld),
+            },
+          }
+        : {}),
+    });
+  }, [bedt, klarTilFil, cvr, model.periode, model.foersteAar, model.forrigePeriode, model.forrigeRapport, rapport]);
 
   return (
     <section className="skaerm">
@@ -394,7 +516,12 @@ export function Kontrol({
 
       <div className="panel">
         <h2>Det, kunden har</h2>
-        <p className="hint">Kun det, der findes, får en kontrollinje.</p>
+        <p className="hint">
+          {model.kilde === 'saldobalance'
+            ? 'Med en godkendt saldobalance kommer varelager, valuta og lån fra kontiene i filen. Valgene her er kun til eksemplet.'
+            : 'Kun det, der findes, får en kontrollinje.'}
+        </p>
+        <fieldset disabled={model.kilde === 'saldobalance'} className="uden-ramme">
         <div className="felter tre">
           <label className="afkryds">
             <input type="checkbox" checked={model.laan} onChange={(haendelse) => model.setLaan(haendelse.target.checked)} />
@@ -409,19 +536,20 @@ export function Kontrol({
             Konto i fremmed valuta
           </label>
         </div>
+        </fieldset>
         {erLaan ? (
           <label className="afklaring">
             Afklaring af kapitalejerlånet
             <textarea value={model.afklaring} onChange={(haendelse) => model.setAfklaring(haendelse.target.value)} placeholder="Skriv afklaringen" />
           </label>
         ) : null}
-        {model.varelager ? (
+        {postFindes(model.poster, 'varelager') ? (
           <label className="afkryds">
             <input type="checkbox" checked={model.varelagerBekaertet} onChange={(haendelse) => model.setVarelagerBekaertet(haendelse.target.checked)} />
             Varelageret er talt op og passer
           </label>
         ) : null}
-        {model.valuta ? (
+        {postFindes(model.poster, 'valuta') ? (
           <label className="afkryds">
             <input type="checkbox" checked={model.valutaKursSat} onChange={(haendelse) => model.setValutaKursSat(haendelse.target.checked)} />
             Lukkekursen på balancedagen er sat
@@ -449,20 +577,31 @@ export function Kontrol({
       <div className="panel">
         <h2>Fil til indsendelse</h2>
         <p className="laengde">{indsendelsesTekst(alleOk, aarLaast)}</p>
+        <p className="hint">Filen er et udtræk til Erhvervsstyrelsen. Et menneske sender den. Programmet har ikke sendt den.</p>
+        <label>
+          CVR-nummer (8 cifre)
+          <input
+            value={cvr}
+            onChange={(haendelse) => { setCvr(haendelse.target.value.replace(/[^\d\s]/g, '').slice(0, 11)); setBedt(false); }}
+            inputMode="numeric"
+            autoComplete="off"
+            aria-label="CVR-nummer"
+          />
+        </label>
         <div className="filer">
-          <button
-            type="button"
-            className="primaer"
-            disabled={!kanIndsende(alleOk, aarLaast)}
-            onClick={() => setUdtraek(udtraekSomTekst(bygUdtraek({ selskab: SELSKAB, fra: model.periode.fra, til: model.periode.til, rapport })))}
-          >
+          <button type="button" className="primaer" disabled={!kanIndsende(alleOk, aarLaast)} onClick={() => setBedt(true)}>
             Gør filen klar
           </button>
         </div>
-        {udtraek ? (
+        {ixbrl && ixbrl.fejl ? <p className="banner stop" role="alert">{ixbrl.fejl}</p> : null}
+        {ixbrl && ixbrl.xml ? (
           <>
             <p className="banner klar" role="status">Filen er klar til et menneske. Programmet har ikke sendt den.</p>
-            <pre className="aftale">{udtraek}</pre>
+            <div className="filer">
+              <a className="filknap primaer" href={`data:application/xhtml+xml;charset=utf-8,${encodeURIComponent(ixbrl.xml)}`} download="aarsrapport.xhtml">
+                Hent aarsrapport.xhtml
+              </a>
+            </div>
           </>
         ) : null}
       </div>
@@ -476,7 +615,7 @@ function Indstillinger({ model }: { model: RegnskabModel }) {
       <h2>Regnskabsår</h2>
       <div className="felter to">
         <label className="afkryds">
-          <input type="checkbox" checked={model.foersteAar} onChange={(haendelse) => model.setFoersteAar(haendelse.target.checked)} />
+          <input type="checkbox" checked={model.foersteAar} disabled={model.kilde === 'saldobalance'} onChange={(haendelse) => model.setFoersteAar(haendelse.target.checked)} />
           Første regnskabsår
         </label>
         <label className="afkryds">
@@ -488,9 +627,48 @@ function Indstillinger({ model }: { model: RegnskabModel }) {
           <input value={model.fremfoert} onChange={(haendelse) => model.setFremfoert(haendelse.target.value)} inputMode="decimal" />
         </label>
       </div>
+      {model.sambeskatning ? (
+        <label>
+          Holdingens resultat før skat
+          <input value={model.holdingResultat} onChange={(haendelse) => model.setHoldingResultat(haendelse.target.value)} inputMode="decimal" />
+          <span className="hint">Det regnskabsmæssige tal fra holdingens egen bogføring. Det er ikke et skattemæssigt tal.</span>
+        </label>
+      ) : null}
       <p className="laengde">
-        {formatDato(model.periode.fra)}–{formatDato(model.periode.til)}. Skat, udskudt skat og sambeskatningsbidrag bliver regnet ud. De kan ikke tastes. Fremført underskud bruges også ved sambeskatning.
+        {formatDato(model.periode.fra)}–{formatDato(model.periode.til)}. Skat, udskudt skat og sambeskatningsbidrag bliver regnet ud. De kan ikke tastes. Modregnet underskud ved sambeskatning kommer af selskabernes resultater.
       </p>
+    </div>
+  );
+}
+
+function Sambeskatning({ model }: { model: RegnskabModel }) {
+  if (!model.sambeskatning) return null;
+  if (model.sambeskatningFejl !== null) {
+    return <p className="banner stop" role="alert">{model.sambeskatningFejl} Året kan ikke låses.</p>;
+  }
+  const resultat = model.sambeskatningResultat;
+  if (resultat === null) return null;
+  const poster = resultat.selskaber.flatMap((selskab) => selskab.balanceposter.map((post) => ({ ...post, selskab: selskab.navn })));
+  return (
+    <div className="tabel-wrap">
+      <table>
+        <caption>Balanceposter fra sambeskatningen. Beløbene er regnet ud og kan ikke tastes.</caption>
+        <thead>
+          <tr><th>Selskab</th><th>Post</th><th>Modpart</th><th className="tal">Kroner</th></tr>
+        </thead>
+        <tbody>
+          {poster.length === 0 ? (
+            <tr><td colSpan={4}>Ingen skat at betale i kredsen.</td></tr>
+          ) : poster.map((post) => (
+            <tr key={`${post.selskab}-${post.tekst}-${post.modpart}`}>
+              <td>{post.selskab}</td>
+              <td>{post.tekst}</td>
+              <td>{post.modpart}</td>
+              <td className="tal">{formatKroner(post.beloeb)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

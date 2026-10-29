@@ -75,6 +75,7 @@ export function bygRapport(input: {
   udbytte: number;
   sidsteAarsRapport?: Rapport;
   klassetal?: Klassetal;
+  indkomstAar?: number;
 }): Rapport {
   const sum = (...roller: PosterRolle[]) => input.poster.filter((post) => roller.includes(post.rolle)).reduce((acc, post) => acc + post.beloeb, 0);
   const konti = (...roller: PosterRolle[]) => input.poster.filter((post) => roller.includes(post.rolle) && post.beloeb !== 0).map((post) => post.kontonummer);
@@ -98,9 +99,10 @@ export function bygRapport(input: {
     administrationsselskab: input.administrationsselskab,
     regnskabsvaerdiAnlaeg: input.regnskabsvaerdiAnlaeg,
     skattevaerdiAnlaeg: input.skattevaerdiAnlaeg,
+    ...(input.indkomstAar !== undefined ? { indkomstAar: input.indkomstAar } : {}),
   };
   const skat = beregnSkat(grundlag);
-  if (!selskab && input.sambeskatning && skat.fejl) fejl.push(skat.fejl);
+  if ((selskab || input.sambeskatning) && skat.fejl) fejl.push(skat.fejl);
 
   const udskudtPrimo = -sum('udskudt-skat');
   const udskudtUltimo = skat.udskudtSkat ?? udskudtPrimo;
@@ -200,6 +202,40 @@ export function bygRapport(input: {
     notePoster,
     fejl,
   };
+}
+
+export const KONTO_ROLLER: Readonly<Record<string, PosterRolle>> = Object.freeze({
+  '1010': 'omsaetning',
+  '2210': 'personale',
+  '3410': 'andre-omkostninger',
+  '3610': 'stiftelse',
+  '3630': 'skattekonto-rente',
+  '3910': 'regnskabsafskrivning',
+  '5110': 'anlaeg',
+  '5500': 'bank',
+  '6110': 'varelager',
+  '6310': 'mellemregning-ejer',
+  '6810': 'gaeld',
+  '6820': 'tilgodehavende',
+  '6900': 'moms',
+  '6910': 'gaeld',
+  '6920': 'gaeld',
+  '7410': 'egenkapital',
+  '7510': 'overfoert-resultat',
+});
+
+export type SaldobalanceLinje = { kontonummer: string; navn: string; beloeb: number };
+
+export function posterFraSaldobalance(linjer: SaldobalanceLinje[]): { poster: Poster[]; umappede: string[] } {
+  const poster: Poster[] = [];
+  const umappede: string[] = [];
+  for (const linje of linjer) {
+    const kontonummer = linje.kontonummer.trim();
+    const rolle = Object.prototype.hasOwnProperty.call(KONTO_ROLLER, kontonummer) ? KONTO_ROLLER[kontonummer] : undefined;
+    if (rolle) poster.push({ kontonummer, navn: linje.navn, beloeb: linje.beloeb, rolle });
+    else if (linje.beloeb !== 0) umappede.push(kontonummer);
+  }
+  return { poster, umappede };
 }
 
 export function kontiUdenLinje(rapport: Rapport, poster: Poster[]): string[] {

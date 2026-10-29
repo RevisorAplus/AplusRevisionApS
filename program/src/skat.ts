@@ -20,7 +20,39 @@ export type SkatGrundlag = {
   administrationsselskab: boolean;
   regnskabsvaerdiAnlaeg: number | null;
   skattevaerdiAnlaeg: number | null;
+  indkomstAar?: number;
 };
+
+export const STANDARD_INDKOMSTAAR = 2026;
+
+export const GRUNDBELOEB_KRONER: Readonly<Record<number, number>> = Object.freeze({
+  2025: 20_829_000,
+  2026: 21_830_700,
+  2027: 22_466_700,
+});
+
+export const UNDERSKUD_PROCENT_OVER_GRUNDBELOEB = 60;
+
+export const GRUNDBELOEB_MANGLER = 'Grundbeløbet for indkomståret er ikke lagt ind.';
+
+export type BrugAfFremfoert = { brugt: number; rest: number; fejl: string | null };
+
+export function grundbeloebOere(aar: number): number | null {
+  if (!Number.isInteger(aar) || !Object.prototype.hasOwnProperty.call(GRUNDBELOEB_KRONER, aar)) return null;
+  return GRUNDBELOEB_KRONER[aar] * 100;
+}
+
+export function brugAfFremfoert(indkomstFoerUnderskudOere: number, fremfoertOere: number, aar: number): BrugAfFremfoert {
+  const fremfoert = Math.max(fremfoertOere, 0);
+  if (fremfoert === 0 || indkomstFoerUnderskudOere <= 0) return { brugt: 0, rest: fremfoert, fejl: null };
+  const grundbeloeb = grundbeloebOere(aar);
+  if (grundbeloeb === null) return { brugt: 0, rest: fremfoert, fejl: GRUNDBELOEB_MANGLER };
+  const under = Math.min(indkomstFoerUnderskudOere, grundbeloeb);
+  const over = indkomstFoerUnderskudOere - under;
+  const loft = under + Math.floor(over * UNDERSKUD_PROCENT_OVER_GRUNDBELOEB / 100);
+  const brugt = Math.min(fremfoert, loft);
+  return { brugt, rest: fremfoert - brugt, fejl: null };
+}
 
 export type SkatLinje = { tekst: string; beloeb: number };
 
@@ -125,7 +157,8 @@ export function beregnSkat(grundlag: SkatGrundlag, procent = SELSKABSSKAT_PROCEN
   }
 
   const foerUnderskud = indkomstFoerUnderskud(grundlag);
-  const brugtFremfoert = begraens(grundlag.fremfoertUnderskud, Math.max(foerUnderskud, 0));
+  const fremfoert = brugAfFremfoert(foerUnderskud, grundlag.fremfoertUnderskud, grundlag.indkomstAar ?? STANDARD_INDKOMSTAAR);
+  const brugtFremfoert = fremfoert.brugt;
   const efterFremfoert = foerUnderskud - brugtFremfoert;
   const modregning = grundlag.sambeskatning ? begraens(grundlag.modregnetUnderskud, Math.abs(efterFremfoert)) : 0;
   const skattepligtig = efterFremfoert >= 0 ? efterFremfoert - modregning : efterFremfoert + modregning;
@@ -159,7 +192,7 @@ export function beregnSkat(grundlag: SkatGrundlag, procent = SELSKABSSKAT_PROCEN
     balanceTekst: grundlag.sambeskatning && !grundlag.administrationsselskab ? 'Skyldigt sambeskatningsbidrag' : 'Skyldig selskabsskat',
     note: `Selskabsskatten er beregnet med ${procent} %.`,
     haeftelse: grundlag.sambeskatning ? HAEFTELSESTEKST : null,
-    fejl: null,
+    fejl: fremfoert.fejl,
   });
 }
 
@@ -198,7 +231,7 @@ export function beregnSambeskatning(selskaber: SelskabIKreds[], procent = SELSKA
 
   const efterEgetUnderskud = selskaber.map((selskab) => {
     const foer = indkomstFoerUnderskud(selskab.grundlag);
-    return foer - begraens(selskab.grundlag.fremfoertUnderskud, Math.max(foer, 0));
+    return foer - brugAfFremfoert(foer, selskab.grundlag.fremfoertUnderskud, selskab.grundlag.indkomstAar ?? STANDARD_INDKOMSTAAR).brugt;
   });
   const modregnet = fordelModregning(efterEgetUnderskud);
   const beregnede = selskaber.map((selskab, indeks) => ({
@@ -206,6 +239,8 @@ export function beregnSambeskatning(selskaber: SelskabIKreds[], procent = SELSKA
     administrationsselskab: selskab.grundlag.administrationsselskab,
     skat: beregnSkat({ ...selskab.grundlag, sambeskatning: true, modregnetUnderskud: modregnet[indeks] ?? 0 }, procent),
   }));
+  const skatFejl = beregnede.find((selskab) => selskab.skat.fejl !== null)?.skat.fejl;
+  if (skatFejl) return afvist(skatFejl);
 
   const skyldigTilSkat = beregnede.reduce((sum, selskab) => sum + selskab.skat.aktuelSkat, 0);
   const bidragsydere = beregnede.filter((selskab) => !selskab.administrationsselskab && selskab.skat.aktuelSkat > 0);

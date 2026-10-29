@@ -6,6 +6,9 @@ import {
   beregnSambeskatning,
   beregnSkat,
   beregnUdskudtSkat,
+  brugAfFremfoert,
+  grundbeloebOere,
+  GRUNDBELOEB_MANGLER,
   kontrollerSkattebro,
   permanenteFraKonti,
   type SkatGrundlag,
@@ -304,5 +307,96 @@ describe('national sambeskatning', () => {
     expect(beregnSambeskatning([{ navn: 'Drift', grundlag: drift() }, { navn: 'Holding', grundlag: holding({ administrationsselskab: false }) }]).fejl).toContain('administrationsselskab');
     expect(beregnSambeskatning([{ navn: 'Drift', grundlag: drift({ administrationsselskab: true }) }, { navn: 'Holding', grundlag: holding() }]).fejl).toContain('administrationsselskab');
     expect(beregnSambeskatning([{ navn: 'Holding', grundlag: holding() }]).fejl).toContain('to selskaber');
+  });
+});
+
+describe('begrænset fremførsel af underskud efter selskabsskattelovens § 12, stk. 2', () => {
+  it('har grundbeløbet i øre for 2025, 2026 og 2027 og null for et ukendt år', () => {
+    expect(grundbeloebOere(2025)).toBe(kr(20_829_000));
+    expect(grundbeloebOere(2026)).toBe(kr(21_830_700));
+    expect(grundbeloebOere(2027)).toBe(kr(22_466_700));
+    expect(grundbeloebOere(2024)).toBeNull();
+    expect(grundbeloebOere(2028)).toBeNull();
+    expect(grundbeloebOere(2026.5)).toBeNull();
+  });
+
+  it('bruger underskuddet fuldt ud op til grundbeløbet', () => {
+    expect(brugAfFremfoert(kr(1_000_000), kr(400_000), 2026)).toEqual({ brugt: kr(400_000), rest: 0, fejl: null });
+    expect(brugAfFremfoert(kr(1_000_000), kr(3_000_000), 2026)).toEqual({ brugt: kr(1_000_000), rest: kr(2_000_000), fejl: null });
+    expect(brugAfFremfoert(kr(21_830_700), kr(30_000_000), 2026)).toEqual({ brugt: kr(21_830_700), rest: kr(8_169_300), fejl: null });
+  });
+
+  it('bruger kun 60 procent af indkomsten over grundbeløbet og fremfører resten', () => {
+    const brug = brugAfFremfoert(kr(30_000_000), kr(30_000_000), 2026);
+    const forventet = kr(21_830_700) + kr(8_169_300) * 60 / 100;
+    expect(brug.brugt).toBe(forventet);
+    expect(brug.brugt).toBe(kr(26_732_280));
+    expect(brug.rest).toBe(kr(30_000_000) - forventet);
+    expect(brug.fejl).toBeNull();
+    expect(brugAfFremfoert(kr(30_000_000), kr(30_000_000), 2025).brugt).toBe(kr(20_829_000) + kr(9_171_000) * 60 / 100);
+  });
+
+  it('runder 60 procent ned, så der aldrig bruges mere end loven tillader', () => {
+    const grundbeloeb = kr(21_830_700);
+    expect(brugAfFremfoert(grundbeloeb + 1, kr(30_000_000), 2026).brugt).toBe(grundbeloeb);
+    expect(brugAfFremfoert(grundbeloeb + 2, kr(30_000_000), 2026).brugt).toBe(grundbeloeb + 1);
+  });
+
+  it('bruger ikke fremført underskud ved negativ indkomst eller nul', () => {
+    expect(brugAfFremfoert(kr(-50_000), kr(20_000), 2026)).toEqual({ brugt: 0, rest: kr(20_000), fejl: null });
+    expect(brugAfFremfoert(0, kr(20_000), 2026)).toEqual({ brugt: 0, rest: kr(20_000), fejl: null });
+  });
+
+  it('giver fejl og bruger intet, når grundbeløbet for året mangler', () => {
+    expect(brugAfFremfoert(kr(100_000), kr(20_000), 2030)).toEqual({ brugt: 0, rest: kr(20_000), fejl: GRUNDBELOEB_MANGLER });
+    expect(GRUNDBELOEB_MANGLER).toBe('Grundbeløbet for indkomståret er ikke lagt ind.');
+    expect(brugAfFremfoert(kr(100_000), 0, 2030).fejl).toBeNull();
+    expect(brugAfFremfoert(kr(-100_000), kr(20_000), 2030).fejl).toBeNull();
+  });
+
+  it('beregner skatten af 30 mio. kr. med 30 mio. kr. fremført underskud i 2026 med begrænsningen', () => {
+    const skat = beregnSkat(rent({ resultatFoerSkat: kr(30_000_000), fremfoertUnderskud: kr(30_000_000), indkomstAar: 2026 }));
+    const brugt = kr(21_830_700) + kr(8_169_300) * 60 / 100;
+    expect(linje(skat, BRO.fremfoert)?.beloeb).toBe(-brugt);
+    expect(linje(skat, BRO.fremfoert)?.beloeb).not.toBe(kr(-30_000_000));
+    expect(skat.skattepligtigIndkomst).toBe(kr(30_000_000) - brugt);
+    expect(skat.skattepligtigIndkomst).toBe(kr(3_267_720));
+    expect(skat.aktuelSkat).toBe(Math.round((kr(30_000_000) - brugt) * 22 / 100));
+    expect(skat.aktuelSkat).toBe(kr(718_898.4));
+    expect(skat.nytFremfoertUnderskud).toBe(kr(30_000_000) - brugt);
+    expect(skat.fejl).toBeNull();
+    expect(kontrollerSkattebro(skat)).toEqual([]);
+    expect(Object.keys(rent({ indkomstAar: 2026 }))).not.toContain('aktuelSkat');
+  });
+
+  it('bruger 2026, når året ikke er angivet', () => {
+    const uden = beregnSkat(rent({ resultatFoerSkat: kr(30_000_000), fremfoertUnderskud: kr(30_000_000) }));
+    const med = beregnSkat(rent({ resultatFoerSkat: kr(30_000_000), fremfoertUnderskud: kr(30_000_000), indkomstAar: 2026 }));
+    expect(uden.aktuelSkat).toBe(med.aktuelSkat);
+  });
+
+  it('melder fejl i skatten, når grundbeløbet for indkomståret mangler', () => {
+    const skat = beregnSkat(rent({ resultatFoerSkat: kr(100_000), fremfoertUnderskud: kr(20_000), indkomstAar: 2030 }));
+    expect(skat.fejl).toBe(GRUNDBELOEB_MANGLER);
+    expect(linje(skat, BRO.fremfoert)).toBeUndefined();
+    expect(beregnSkat(rent({ resultatFoerSkat: kr(100_000), indkomstAar: 2030 })).fejl).toBeNull();
+  });
+
+  it('bruger begrænsningen før sambeskatningen og afviser kredsen ved manglende grundbeløb', () => {
+    const kreds = beregnSambeskatning([
+      { navn: 'Drift', grundlag: rent({ resultatFoerSkat: kr(30_000_000), fremfoertUnderskud: kr(30_000_000), indkomstAar: 2026 }) },
+      { navn: 'Holding', grundlag: rent({ resultatFoerSkat: kr(-1_000_000), administrationsselskab: true, indkomstAar: 2026 }) },
+    ]);
+    const [d] = kreds.selskaber;
+    expect(linje(d, BRO.fremfoert)?.beloeb).toBe(kr(-26_732_280));
+    expect(linje(d, BRO.modregnet)?.beloeb).toBe(kr(-1_000_000));
+    expect(d.skattepligtigIndkomst).toBe(kr(2_267_720));
+
+    const mangler = beregnSambeskatning([
+      { navn: 'Drift', grundlag: rent({ resultatFoerSkat: kr(100_000), fremfoertUnderskud: kr(20_000), indkomstAar: 2030 }) },
+      { navn: 'Holding', grundlag: rent({ resultatFoerSkat: kr(-10_000), administrationsselskab: true, indkomstAar: 2030 }) },
+    ]);
+    expect(mangler.fejl).toBe(GRUNDBELOEB_MANGLER);
+    expect(mangler.selskaber).toHaveLength(0);
   });
 });

@@ -14,12 +14,13 @@ import {
   lagerregulering,
   medtagLedelsespateegning,
   postFindes,
+  posterFraSaldobalance,
   regnskabsklasse,
   valutareguleringer,
   type Poster,
   type RapportLinje,
 } from './aar';
-import { HAEFTELSESTEKST } from './skat';
+import { GRUNDBELOEB_MANGLER, HAEFTELSESTEKST } from './skat';
 
 const kr = (kroner: number) => Math.round(kroner * 100);
 
@@ -433,5 +434,60 @@ describe('årslåsen lader ikke en glemt fælde blive grøn', () => {
     expect(linjeFor(kontrol({ kontiUdenLinje: [] }), 'Konti')?.ok).toBe(true);
     expect(kontrol({ kontiUdenLinje: kontiUdenLinje(handelsrapport(), handel) }).kanLaase).toBe(true);
     expect(navne(kontrol())).not.toContain('Konti');
+  });
+});
+
+describe('poster fra saldobalancen', () => {
+  it('gør 3610 til stiftelse og lader en ukendt konto 9999 stå som umappet', () => {
+    const { poster, umappede } = posterFraSaldobalance([
+      { kontonummer: '3610', navn: 'Stiftelsesomkostninger', beloeb: 1_234_567 },
+      { kontonummer: '9999', navn: 'Ukendt', beloeb: kr(500) },
+    ]);
+    expect(poster).toEqual([{ kontonummer: '3610', navn: 'Stiftelsesomkostninger', beloeb: 1_234_567, rolle: 'stiftelse' }]);
+    expect(umappede).toEqual(['9999']);
+  });
+
+  it('mapper alle kendte konti og kopierer beløbet uændret', () => {
+    const forventet: [string, string][] = [
+      ['1010', 'omsaetning'], ['2210', 'personale'], ['3410', 'andre-omkostninger'], ['3610', 'stiftelse'],
+      ['3630', 'skattekonto-rente'], ['3910', 'regnskabsafskrivning'], ['5110', 'anlaeg'], ['5500', 'bank'],
+      ['6110', 'varelager'], ['6310', 'mellemregning-ejer'], ['6810', 'gaeld'], ['6820', 'tilgodehavende'],
+      ['6900', 'moms'], ['6910', 'gaeld'], ['6920', 'gaeld'], ['7410', 'egenkapital'], ['7510', 'overfoert-resultat'],
+    ];
+    const { poster, umappede } = posterFraSaldobalance(forventet.map(([kontonummer], indeks) => ({ kontonummer, navn: `Konto ${kontonummer}`, beloeb: -(indeks + 1) * 101 })));
+    expect(umappede).toEqual([]);
+    expect(poster.map((post) => [post.kontonummer, post.rolle])).toEqual(forventet);
+    expect(poster.map((post) => post.beloeb)).toEqual(forventet.map((_, indeks) => -(indeks + 1) * 101));
+  });
+
+  it('melder ikke en ukendt konto uden saldo som umappet', () => {
+    expect(posterFraSaldobalance([{ kontonummer: '9999', navn: 'Tom', beloeb: 0 }])).toEqual({ poster: [], umappede: [] });
+  });
+
+  it('kan bygge en rapport, der går op, direkte fra saldobalancen', () => {
+    const { poster, umappede } = posterFraSaldobalance([
+      { kontonummer: '1010', navn: 'Salg', beloeb: kr(-200_000) },
+      { kontonummer: '3410', navn: 'Andre omkostninger', beloeb: kr(50_000) },
+      { kontonummer: '3610', navn: 'Stiftelse', beloeb: kr(5_000) },
+      { kontonummer: '5500', navn: 'Bank', beloeb: kr(185_000) },
+      { kontonummer: '7410', navn: 'Anpartskapital', beloeb: kr(-40_000) },
+    ]);
+    expect(umappede).toEqual([]);
+    const regnskab = bygRapport({
+      form: 'aps', foersteAar: true, klasseB: true, poster, skatteafskrivning: 0, fremfoertUnderskud: 0, modregnetUnderskud: 0,
+      sambeskatning: false, administrationsselskab: false, regnskabsvaerdiAnlaeg: null, skattevaerdiAnlaeg: null, harSidsteAar: false,
+      overfoert: kr(145_000) - kr(33_000), udbytte: 0, indkomstAar: 2026,
+    });
+    expect(regnskab.skat.skattepligtigIndkomst).toBe(kr(150_000));
+    expect(regnskab.skat.aktuelSkat).toBe(kr(33_000));
+    expect(regnskab.balanceForskel).toBe(0);
+    expect(kontiUdenLinje(regnskab, poster)).toEqual([]);
+  });
+
+  it('fører fejlen om manglende grundbeløb videre til rapporten', () => {
+    const regnskab = rapport({ indkomstAar: 2030 });
+    expect(regnskab.skat.fejl).toBe(GRUNDBELOEB_MANGLER);
+    expect(regnskab.fejl).toContain(GRUNDBELOEB_MANGLER);
+    expect(rapport().fejl).toEqual([]);
   });
 });

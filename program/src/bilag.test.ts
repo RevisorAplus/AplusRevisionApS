@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { indlaesLoenfil, sletBilag, soegBilag, tilbagefoer } from './bilag';
+import { bilagUdenFil, indlaesLoenfil, sletBilag, soegBilag, tilbagefoer, type BilagPost } from './bilag';
 
 const kr = (kroner: number) => Math.round(kroner * 100);
 const fil = [
@@ -47,5 +47,27 @@ describe('bilag og løn', () => {
   it('afviser lønfil der ikke balancerer', () => {
     const ubalanceret = ['Type;Beløb', 'Bruttoløn;80.000,00', 'Nettoløn;-45.600,00'].join('\n');
     expect(indlaesLoenfil(ubalanceret).fejl).toContain('balancerer');
+  });
+
+  it('finder bilag via filnavn, og tilbageførsel har ingen fil', () => {
+    const post: BilagPost = {
+      id: 'fakt-1',
+      kilde: 'indkoeb',
+      bilagsnummer: 'F1',
+      dato: '2024-09-01',
+      tekst: 'Leverandør',
+      konto: '6110',
+      beloeb: kr(1_000),
+      momskode: 'K25',
+      stornoAf: null,
+      fil: 'faktura.pdf',
+    };
+    const poster = [post];
+    expect(soegBilag(poster, 'faktura.pdf')).toEqual([post]);
+    const tilbage = tilbagefoer(poster, post.id, '2024-10-01');
+    expect(tilbage.poster[0].fil).toBe('faktura.pdf');
+    expect(tilbage.poster[1].fil).toBeNull();
+    const udenFil: BilagPost = { ...post, id: 'manu-1', stornoAf: null, fil: null };
+    expect(bilagUdenFil([post, udenFil, tilbage.poster[1]!])).toEqual([udenFil]);
   });
 });

@@ -196,16 +196,18 @@ function ProeveBoks<K extends KildeNavn>({
               <th>Dato</th>
               <th>Tekst</th>
               <th>Konto</th>
+              <th>Fil</th>
               <th className="tal">Beløb</th>
             </tr>
           </thead>
           <tbody>
-            {nu.linjer.length === 0 ? <tr><td colSpan={5}>Ingen linjer endnu.</td></tr> : nu.linjer.map((linje) => (
+            {nu.linjer.length === 0 ? <tr><td colSpan={6}>Ingen linjer endnu.</td></tr> : nu.linjer.map((linje) => (
               <tr key={`${linje.kilde}-${linje.bilagsnummer}`}>
                 <td>{linje.bilagsnummer}</td>
                 <td>{formatDato(linje.dato)}</td>
                 <td>{linje.tekst}</td>
                 <td>{linje.konto} {konto(linje.konto)?.navn ?? ''}</td>
+                <td className="bryd">{linje.fil ? linje.fil : '—'}</td>
                 <td className="tal">{formatKroner(linje.beloeb)}</td>
               </tr>
             ))}
