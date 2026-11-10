@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Phone, Mail, MapPin } from 'lucide-react';
+import { Phone, Mail, MapPin, Linkedin } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 
 export function Footer() {
@@ -102,6 +102,17 @@ export function Footer() {
                   <br />
                   2100 København Ø
                 </span>
+              </li>
+              <li className="flex items-center gap-3 text-sm">
+                <Linkedin className="w-6 h-6 text-accent-500 flex-shrink-0" />
+                <a
+                  href="https://www.linkedin.com/company/aplusrevision/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="A+ Revision på LinkedIn"
+                >
+                  LinkedIn
+                </a>
               </li>
             </ul>
           </div>
