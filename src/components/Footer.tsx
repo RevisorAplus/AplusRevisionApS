@@ -3,7 +3,7 @@ import { Phone, Mail, MapPin } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 
 export function Footer() {
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
 
   return (
     <footer className="bg-gray-900 text-gray-300">
@@ -97,7 +97,11 @@ export function Footer() {
               </li>
               <li className="flex items-start gap-3 text-sm">
                 <MapPin className="w-6 h-6 text-accent-500 flex-shrink-0 mt-0.5" />
-                <span>{language === 'da' ? 'København' : 'Copenhagen'}</span>
+                <span>
+                  Lyngbyvej 83A
+                  <br />
+                  2100 København Ø
+                </span>
               </li>
             </ul>
           </div>

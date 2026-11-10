@@ -1,4 +1,4 @@
-import { Phone, Mail, Clock, CheckCircle2 } from 'lucide-react';
+import { Phone, Mail, MapPin, Clock, CheckCircle2 } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { ContactForm } from '../components/ContactForm';
 
@@ -40,6 +40,19 @@ export function ContactPage() {
                   <div>
                     <p className="text-sm text-gray-500 mb-1">{t.contact.info.email}</p>
                     <a href="mailto:revisor@aplusrevision.dk" className="text-lg font-semibold text-gray-900">revisor@aplusrevision.dk</a>
+                  </div>
+                </div>
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-primary-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <MapPin className="w-6 h-6 text-primary-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500 mb-1">{language === 'da' ? 'Adresse' : 'Address'}</p>
+                    <p className="text-lg font-semibold text-gray-900">
+                      Lyngbyvej 83A
+                      <br />
+                      2100 København Ø
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-start gap-4">
