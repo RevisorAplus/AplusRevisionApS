@@ -25,7 +25,8 @@ export function HomePage() {
       icon: FileText,
       title: t.services.annualAccounts.title,
       description: t.services.annualAccounts.shortDesc,
-      price: '4.995 DKK',
+      price: '3.995 DKK',
+      priceUnit: t.pricing.exclVat,
       link: '/services/annual-accounts',
     },
     {
@@ -143,7 +144,8 @@ export function HomePage() {
               <FileText className="w-10 h-10 text-white mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-white mb-2">{t.services.annualAccounts.title}</h3>
               <p className="text-primary-100 text-sm mb-4">{t.pricing.startingFrom}</p>
-              <p className="text-3xl font-bold text-white">4.995 DKK</p>
+              <p className="text-3xl font-bold text-white">3.995 DKK</p>
+              <p className="text-primary-200 text-sm">{t.pricing.exclVat}</p>
             </div>
             <div className="bg-white rounded-2xl p-6 text-center shadow-xl transform lg:scale-105">
               <div className="inline-block bg-primary-600 text-white text-xs font-semibold px-3 py-1 rounded-full mb-4">
@@ -164,6 +166,7 @@ export function HomePage() {
             </div>
           </div>
           <div className="text-center mt-10">
+            <p className="text-primary-100 text-sm mb-6">{t.pricing.allPricesExclVat}</p>
             <Link
               to="/pricing"
               className="inline-flex items-center gap-2 bg-white text-primary-600 px-6 py-3 rounded-lg font-semibold hover:bg-primary-50 transition-colors"

@@ -10,7 +10,7 @@ const da: Record<string, SeoSide> = {
   "/": {
     title: "Bogføring og årsregnskab i København | A+ Revision",
     description:
-      "Løbende bogføring fra 895 kr. om måneden. Årsregnskab fra 4.995 kr. Skat og moms. Én kontaktperson. Ring 50 29 51 59.",
+      "Løbende bogføring fra 895 kr. om måneden. Årsregnskab fra 3.995 kr. ekskl. moms. Skat og moms. Én kontaktperson. Ring 50 29 51 59.",
     robots: "index,follow",
   },
   "/services": {
@@ -26,9 +26,9 @@ const da: Record<string, SeoSide> = {
     robots: "index,follow",
   },
   "/services/annual-accounts": {
-    title: "Årsregnskab fra 4.995 kr. | A+ Revision",
+    title: "Årsregnskab fra 3.995 kr. | A+ Revision",
     description:
-      "Vi laver årsregnskabet og gør det klar til indsendelse. Du får et tydeligt tilbud, før vi starter. Fra 4.995 kr.",
+      "Vi laver årsregnskabet og gør det klar til indsendelse. Du får et tydeligt tilbud, før vi starter. Fra 3.995 kr. ekskl. moms.",
     robots: "index,follow",
   },
   "/services/tax-returns": {
@@ -58,7 +58,7 @@ const da: Record<string, SeoSide> = {
   "/pricing": {
     title: "Priser på bogføring og årsregnskab | A+ Revision",
     description:
-      "Bogføring fra 895 kr. om måneden. Årsregnskab fra 4.995 kr. Rådgivning fra 495 kr. i timen. Prisen aftales, før vi starter.",
+      "Bogføring fra 895 kr. om måneden. Årsregnskab fra 3.995 kr. ekskl. moms. Rådgivning fra 495 kr. i timen. Prisen aftales, før vi starter.",
     robots: "index,follow",
   },
   "/about": {
@@ -85,7 +85,7 @@ const en: Record<string, SeoSide> = {
   "/": {
     title: "Bookkeeping and annual accounts in Copenhagen | A+",
     description:
-      "Monthly bookkeeping from DKK 895. Annual accounts from DKK 4,995. Tax and VAT. One contact person. Call +45 50 29 51 59.",
+      "Monthly bookkeeping from DKK 895. Annual accounts from DKK 3,995 excl. VAT. Tax and VAT. One contact person. Call +45 50 29 51 59.",
     robots: "index,follow",
   },
   "/services": {
@@ -101,9 +101,9 @@ const en: Record<string, SeoSide> = {
     robots: "index,follow",
   },
   "/services/annual-accounts": {
-    title: "Annual accounts from DKK 4,995 | A+ Revision",
+    title: "Annual accounts from DKK 3,995 | A+ Revision",
     description:
-      "We prepare the annual accounts and make them ready to file. You get a clear price before we start. From DKK 4,995.",
+      "We prepare the annual accounts and make them ready to file. You get a clear price before we start. From DKK 3,995 excl. VAT.",
     robots: "index,follow",
   },
   "/services/tax-returns": {
@@ -133,7 +133,7 @@ const en: Record<string, SeoSide> = {
   "/pricing": {
     title: "Prices for bookkeeping and accounts | A+ Revision",
     description:
-      "Bookkeeping from DKK 895 a month. Annual accounts from DKK 4,995. Advice from DKK 495 an hour. The price is agreed first.",
+      "Bookkeeping from DKK 895 a month. Annual accounts from DKK 3,995 excl. VAT. Advice from DKK 495 an hour. The price is agreed first.",
     robots: "index,follow",
   },
   "/about": {

@@ -18,7 +18,8 @@ export function ServicesPage() {
       icon: FileText,
       title: t.services.annualAccounts.title,
       description: t.services.annualAccounts.shortDesc,
-      price: '4.995 DKK',
+      price: '3.995 DKK',
+      priceUnit: t.pricing.exclVat,
       link: '/services/annual-accounts',
     },
     {
