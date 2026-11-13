@@ -10,8 +10,9 @@ export function PricingPage() {
       icon: FileText,
       title: t.services.annualAccounts.title,
       description: t.services.annualAccounts.shortDesc,
-      price: '4.995 DKK',
+      price: '3.995 DKK',
       unit: '',
+      exclVat: true,
       features: t.services.annualAccounts.includes,
       popular: false,
       link: '/services/annual-accounts',
@@ -22,6 +23,7 @@ export function PricingPage() {
       description: t.services.bookkeeping.shortDesc,
       price: '895 DKK',
       unit: t.services.perMonth,
+      exclVat: false,
       features: t.services.bookkeeping.includes,
       popular: true,
       link: '/services/bookkeeping',
@@ -32,6 +34,7 @@ export function PricingPage() {
       description: t.services.advisory.shortDesc,
       price: '495 DKK',
       unit: t.services.perHour,
+      exclVat: false,
       features: t.services.advisory.includes,
       popular: false,
       link: '/services/advisory',
@@ -62,6 +65,7 @@ export function PricingPage() {
           <div className="max-w-3xl mx-auto text-center">
             <h1 className="text-4xl font-bold text-gray-900 mb-4">{t.pricing.title}</h1>
             <p className="text-xl text-gray-600">{t.pricing.subtitle}</p>
+            <p className="text-sm text-gray-500 mt-3">{t.pricing.allPricesExclVat}</p>
           </div>
         </div>
       </section>
@@ -98,6 +102,7 @@ export function PricingPage() {
                       <span className="text-3xl font-bold text-gray-900">{item.price}</span>
                       {item.unit && <span className="text-gray-500">{item.unit}</span>}
                     </div>
+                    {item.exclVat && <p className="text-sm text-gray-500">{t.pricing.exclVat}</p>}
                   </div>
                   <ul className="space-y-3 mb-8">
                     {item.features.slice(0, 4).map((feature, idx) => (

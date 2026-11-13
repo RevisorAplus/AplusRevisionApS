@@ -26,9 +26,9 @@ const serviceKeys: Record<string, ServiceKey> = {
   'salary': 'salary',
 };
 
-const servicePrices: Record<ServiceKey, { price?: string; unit?: 'perMonth' | 'perHour' | 'perEmployee' }> = {
+const servicePrices: Record<ServiceKey, { price?: string; unit?: 'perMonth' | 'perHour' | 'perEmployee'; exclVat?: boolean }> = {
   bookkeeping: { price: '895 DKK', unit: 'perMonth' },
-  annualAccounts: { price: '4.995 DKK' },
+  annualAccounts: { price: '3.995 DKK', exclVat: true },
   taxReturns: {},
   vat: {},
   advisory: { price: '495 DKK', unit: 'perHour' },
@@ -83,6 +83,7 @@ export function ServiceDetailPage() {
                     {pricing.price}
                     {pricing.unit && <span className="text-lg font-normal text-primary-700"> {t.services[pricing.unit]}</span>}
                   </p>
+                  {pricing.exclVat && <p className="text-sm text-primary-700 mt-1">{t.pricing.exclVat}</p>}
                 </div>
               )}
               {'pricing' in service && (
